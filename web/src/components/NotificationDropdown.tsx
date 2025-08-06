@@ -1,4 +1,3 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +9,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSocket } from "@/contexts/SocketProvider";
+import { useUser } from "@clerk/clerk-react";
 import {
   Bell,
   MessageCircle,
@@ -69,7 +70,10 @@ const mockNotifications: Notification[] = [
 ];
 
 export function NotificationDropdown() {
-  const unreadCount = mockNotifications.filter((n) => !n.isRead).length;
+  const { notifications, setNotifications, setSelectedConversation } =
+    useSocket();
+  const { user } = useUser();
+  const unreadCount = notifications.length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -84,14 +88,22 @@ export function NotificationDropdown() {
     }
   };
 
-  const handleNotificationClick = (notificationId: string) => {
-    console.log("Notification clicked:", notificationId);
-    // Add logic to mark as read and handle notification action
+  const handleNotificationClick = (notificationIndex: number) => {
+    console.log("Notification clicked:", notificationIndex);
+    const notification = notifications[notificationIndex];
+
+    // Set the conversation as selected
+    setSelectedConversation(notification.conversation);
+
+    // Remove the notification when clicked
+    setNotifications((prev) =>
+      prev.filter((_, index) => index !== notificationIndex)
+    );
   };
 
   const clearAllNotifications = () => {
     console.log("Clear all notifications");
-    // Add logic to clear all notifications
+    setNotifications([]);
   };
 
   return (
@@ -119,7 +131,7 @@ export function NotificationDropdown() {
           <DropdownMenuLabel className="p-0 text-base font-semibold">
             Notifications
           </DropdownMenuLabel>
-          {mockNotifications.length > 0 && (
+          {notifications.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -132,55 +144,42 @@ export function NotificationDropdown() {
         </div>
 
         <ScrollArea className="max-h-96">
-          {mockNotifications.length === 0 ? (
+          {notifications.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No notifications yet</p>
             </div>
           ) : (
             <div className="p-2">
-              {mockNotifications.map((notification) => (
+              {notifications.map((notification, index) => (
                 <DropdownMenuItem
-                  key={notification.id}
+                  key={index}
                   className="p-3 cursor-pointer focus:bg-muted/50 rounded-lg mb-1"
-                  onClick={() => handleNotificationClick(notification.id)}
+                  onClick={() => handleNotificationClick(index)}
                 >
                   <div className="flex items-start gap-3 w-full">
                     <div className="flex-shrink-0 mt-1">
-                      {notification.avatar ? (
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={notification.avatar} />
-                          <AvatarFallback>
-                            {notification.title.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                      )}
+                      <div className="h-8 w-8 rounded-full bg-muted/50 flex items-center justify-center">
+                        <MessageCircle className="h-4 w-4 text-blue-500" />
+                      </div>
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
-                        <p
-                          className={`text-sm font-medium truncate ${
-                            !notification.isRead
-                              ? "text-foreground"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {notification.title}
+                        <p className="text-sm font-medium truncate text-foreground">
+                          {notification.conversation.type === "GROUP"
+                            ? notification.conversation.name
+                            : notification.conversation.users.find(
+                                (u: any) => u.clerkId !== user?.id
+                              )?.name || "Unknown User"}
                         </p>
-                        {!notification.isRead && (
-                          <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0 ml-2 mt-1" />
-                        )}
+                        <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0 ml-2 mt-1" />
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
-                        {notification.description}
+                        {notification.message.content}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {notification.timestamp}
+                        Just now
                       </p>
                     </div>
                   </div>
@@ -190,7 +189,7 @@ export function NotificationDropdown() {
           )}
         </ScrollArea>
 
-        {mockNotifications.length > 0 && (
+        {notifications.length > 0 && (
           <>
             <DropdownMenuSeparator />
             <div className="p-2">

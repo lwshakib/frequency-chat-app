@@ -4,14 +4,15 @@ import { useReducer } from "react";
 import { ChatContext } from "./ChatContext";
 
 type ChatAction =
-  | { type: "SELECT_CONTACT"; payload: string }
+  | { type: "SELECT_CONTACT"; payload: Contact }
   | { type: "TOGGLE_SIDEBAR" }
   | { type: "SET_SEARCH_QUERY"; payload: string }
   | { type: "SEND_MESSAGE"; payload: string }
-  | { type: "SET_TYPING"; payload: boolean };
+  | { type: "SET_TYPING"; payload: boolean }
+  | { type: "ADD_CONTACT"; payload: Contact };
 
 const initialState: ChatState = {
-  selectedContactId: null,
+  selectedContact: null,
   isSidebarOpen: false,
   searchQuery: "",
   isTyping: false,
@@ -88,12 +89,15 @@ const mockMessages: Message[] = [
   },
 ];
 
-function chatReducer(state: ChatState, action: ChatAction): ChatState {
+function chatReducer(
+  state: ChatState & { contacts: Contact[] },
+  action: ChatAction
+): ChatState & { contacts: Contact[] } {
   switch (action.type) {
     case "SELECT_CONTACT":
       return {
         ...state,
-        selectedContactId: action.payload,
+        selectedContact: action.payload,
         isSidebarOpen: false,
       };
     case "TOGGLE_SIDEBAR":
@@ -102,16 +106,22 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, searchQuery: action.payload };
     case "SET_TYPING":
       return { ...state, isTyping: action.payload };
+    case "ADD_CONTACT":
+      if (state.contacts.some((c) => c.id === action.payload.id)) return state;
+      return { ...state, contacts: [...state.contacts, action.payload] };
     default:
       return state;
   }
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(chatReducer, initialState);
+  const [state, dispatch] = useReducer(chatReducer, {
+    ...initialState,
+    contacts: mockContacts,
+  });
 
-  const selectContact = (contactId: string) => {
-    dispatch({ type: "SELECT_CONTACT", payload: contactId });
+  const selectContact = (contact: Contact) => {
+    dispatch({ type: "SELECT_CONTACT", payload: contact });
   };
 
   const toggleSidebar = () => {
@@ -127,17 +137,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     console.log("Sending message:", content);
   };
 
+  const addContact = (contact: Contact) => {
+    dispatch({ type: "ADD_CONTACT", payload: contact });
+  };
+
   return (
     <ChatContext.Provider
       value={{
         state,
-        contacts: mockContacts,
+        contacts: state.contacts,
         messages: mockMessages,
         dispatch,
         selectContact,
         toggleSidebar,
         setSearchQuery,
         sendMessage,
+        addContact,
       }}
     >
       {children}

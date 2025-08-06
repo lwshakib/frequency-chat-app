@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { User, Mail, LogOut, Edit2, Camera } from 'lucide-react';
 import {
   Dialog,
@@ -9,7 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
-
+    
 interface UserSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;

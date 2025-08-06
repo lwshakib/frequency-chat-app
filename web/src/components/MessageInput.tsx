@@ -11,12 +11,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useChat } from "@/hooks/useChat";
+import { useSocket } from "@/contexts/SocketProvider";
+import { useTheme } from "@/hooks/useTheme";
+import { useUser } from "@clerk/clerk-react";
+import axios from "axios";
 import EmojiPicker, { type EmojiClickData, Theme } from "emoji-picker-react";
 import { FileText, Image, Mic, Paperclip, Send, Smile, X } from "lucide-react";
 import React, { useRef, useState } from "react";
-
 export function MessageInput() {
   const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -24,21 +25,76 @@ export function MessageInput() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { sendMessage, state } = useChat();
-  const { theme } = useTheme();
+  const { sendMessage } = useSocket();
+  const { theme } = useTheme(); // useTheme now returns ThemeContextType
+  const { user } = useUser();
+  const { typing, startTyping, endTyping, setMessages, setTyping, selectedConversation, setSelectedConversation, createGroupOnSocket } = useSocket();
 
-  const handleSend = () => {
+  const handleSend = async() => {
     if (
       (message.trim() || selectedFiles.length > 0) &&
-      state.selectedContactId
+      selectedConversation?.id
     ) {
       if (selectedFiles.length > 0) {
         console.log("Sending files:", selectedFiles);
         // Handle file upload logic here
       }
+
+      
+      const messageJson = {
+        id: Date.now().toString(),
+        sender: {
+          clerkId: user?.id || "",
+          name: user?.fullName || "",
+          email: user?.emailAddresses[0].emailAddress || "",
+          imageUrl: user?.imageUrl || "",
+        },
+        content: message,
+        updatedAt: new Date().toISOString(),
+        type: "text",
+      };
+
+      endTyping({
+        clerkId: user?.id,
+        name: user?.fullName,
+        email: user?.emailAddresses[0].emailAddress,
+        imageUrl: user?.imageUrl,
+        conversation: selectedConversation
+      })
       if (message.trim()) {
-        sendMessage(message);
+        setMessages((prev: any[]) => [...prev, messageJson]);
+        sendMessage({
+          message: messageJson,
+          conversation: selectedConversation,
+          senderId: user?.id,
+        });
+        if(selectedConversation.type === "SHOW"){
+          const {data} = await axios.post("/api/conversations", {
+            type: "single",
+            ids: selectedConversation.users.map((user: any) => user.clerkId),
+          })
+          createGroupOnSocket(data.data)
+          sendMessage({
+            message: messageJson,
+            conversation: data.data,
+            senderId: user?.id,
+          })
+
+          axios.post("/api/messages/"+data.data.id, {
+            content: message,
+            type: "text",
+          })
+          setSelectedConversation(data.data)
+        }else{
+          axios.post("/api/messages/"+selectedConversation.id, {
+            content: message,
+            type: "text",
+          });
+        }
+     
       }
+
+
       setMessage("");
       setSelectedFiles([]);
     }
@@ -90,8 +146,38 @@ export function MessageInput() {
       console.log("Stopping voice recording...");
     }
   };
+  const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    if(!typing){
+      const data = {
+        clerkId: user?.id,
+        name: user?.fullName,
+        email: user?.emailAddresses[0].emailAddress,
+        imageUrl: user?.imageUrl,
+        conversation: selectedConversation
+      }
+      setTyping(data);
+      startTyping(data);
+    }
+    let lastTypingTime = new Date().getTime();
+    var timerLength = 3000;
+    setTimeout(() => {
+      var timeNow = new Date().getTime();
+      var timeDiff = timeNow - lastTypingTime;
+      if(timeDiff >= timerLength && typing){
+        setTyping(null);
+        endTyping({
+          clerkId: user?.id,
+          name: user?.fullName,
+          email: user?.emailAddresses[0].emailAddress,
+          imageUrl: user?.imageUrl,
+          conversation: selectedConversation
+        });
+      }
+    }, timerLength);
+  };
 
-  if (!state.selectedContactId) {
+  if (!selectedConversation?.id) {
     return null;
   }
 
@@ -203,7 +289,7 @@ export function MessageInput() {
                 ref={textareaRef}
                 placeholder="Type a message..."
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={handleTyping}
                 onKeyPress={handleKeyPress}
                 className="min-h-[48px] max-h-32 resize-none border-0 bg-transparent px-4 py-3 pr-12 text-sm placeholder:text-muted-foreground/60 focus-visible:ring-0 focus-visible:ring-offset-0 scrollbar-thin"
                 rows={1}

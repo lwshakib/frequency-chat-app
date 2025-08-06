@@ -14,12 +14,12 @@ export interface Message {
   senderId: string;
   content: string;
   timestamp: string;
-  type: 'text' | 'image' | 'file';
+  type: "text" | "image" | "file";
   isOwn: boolean;
 }
 
 export interface ChatState {
-  selectedContactId: string | null;
+  selectedContact: Contact | null;
   isSidebarOpen: boolean;
   searchQuery: string;
   isTyping: boolean;

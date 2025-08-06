@@ -6,18 +6,20 @@ interface ChatContextType {
   contacts: Contact[];
   messages: Message[];
   dispatch: React.Dispatch<ChatAction>;
-  selectContact: (contactId: string) => void;
+  selectContact: (contact: Contact) => void;
   toggleSidebar: () => void;
   setSearchQuery: (query: string) => void;
   sendMessage: (content: string) => void;
+  addContact: (contact: Contact) => void;
 }
 
 type ChatAction =
-  | { type: "SELECT_CONTACT"; payload: string }
+  | { type: "SELECT_CONTACT"; payload: Contact }
   | { type: "TOGGLE_SIDEBAR" }
   | { type: "SET_SEARCH_QUERY"; payload: string }
   | { type: "SEND_MESSAGE"; payload: string }
-  | { type: "SET_TYPING"; payload: boolean };
+  | { type: "SET_TYPING"; payload: boolean }
+  | { type: "ADD_CONTACT"; payload: Contact };
 
 export const ChatContext = createContext<ChatContextType | undefined>(
   undefined

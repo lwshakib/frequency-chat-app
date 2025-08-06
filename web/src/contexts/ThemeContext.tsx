@@ -1,31 +1,24 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-
-type Theme = 'light' | 'dark';
-
-interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-}
-
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+import { useEffect, useState, type ReactNode } from "react";
+import type { Theme } from "./ThemeContextDef";
+import { ThemeContext } from "./ThemeContextDef";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('chat-app-theme');
-    return (saved as Theme) || 'light';
+    const saved = localStorage.getItem("chat-app-theme");
+    return (saved as Theme) || "light";
   });
 
   useEffect(() => {
-    localStorage.setItem('chat-app-theme', theme);
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+    localStorage.setItem("chat-app-theme", theme);
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
   return (
@@ -33,12 +26,4 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       {children}
     </ThemeContext.Provider>
   );
-}
-
-export function useTheme() {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
 }

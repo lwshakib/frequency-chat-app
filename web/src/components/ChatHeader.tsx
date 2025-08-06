@@ -7,17 +7,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSocket } from "@/contexts/SocketProvider";
 import { useChat } from "@/hooks/useChat";
+import { useUser } from "@clerk/clerk-react";
 import { Menu, MoreVertical, Phone, Video } from "lucide-react";
 
 export function ChatHeader() {
-  const { state, contacts, toggleSidebar } = useChat();
+  const { toggleSidebar } = useChat();
+  const { selectedConversation } = useSocket();
+  const { user } = useUser();
 
-  const selectedContact = contacts.find(
-    (c) => c.id === state.selectedContactId
-  );
-
-  if (!selectedContact) {
+  if (!selectedConversation) {
     return (
       <div className="flex items-center justify-between p-4 border-b border-border bg-card">
         <Button
@@ -49,21 +49,60 @@ export function ChatHeader() {
 
         <div className="relative">
           <Avatar className="h-10 w-10 ring-2 ring-background shadow-md">
-            <AvatarImage
-              src={selectedContact.avatar}
-              alt={selectedContact.name}
-            />
-            <AvatarFallback>{selectedContact.name.slice(0, 2)}</AvatarFallback>
+            {selectedConversation.type === "GROUP" ? (
+              /* Show group image if available, otherwise show fallback */
+              selectedConversation.image ? (
+                <AvatarImage
+                  src={selectedConversation.image}
+                  alt={selectedConversation.name}
+                />
+              ) : null
+            ) : (
+              /* Show other user's avatar for direct messages */
+              <AvatarImage
+                src={
+                  selectedConversation.users.find(
+                    (u: any) => u.clerkId !== user?.id
+                  )?.imageUrl
+                }
+                alt={
+                  selectedConversation.users.find(
+                    (u: any) => u.clerkId !== user?.id
+                  )?.name || "Unknown User"
+                }
+              />
+            )}
+            <AvatarFallback>
+              {selectedConversation.type === "GROUP"
+                ? selectedConversation.name?.charAt(0) || "G"
+                : selectedConversation.users
+                    .find((u: any) => u.clerkId !== user?.id)
+                    ?.name?.charAt(0) || "U"}
+            </AvatarFallback>
           </Avatar>
-          {selectedContact.isOnline && (
-            <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
-          )}
+          {selectedConversation.type !== "GROUP" &&
+            selectedConversation.users.find((u: any) => u.clerkId !== user?.id)
+              ?.isOnline && (
+              <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 bg-green-500 rounded-full border-2 border-background animate-pulse" />
+            )}
         </div>
 
         <div>
-          <h2 className="font-semibold text-sm">{selectedContact.name}</h2>
+          <h2 className="font-semibold text-sm">
+            {selectedConversation.type === "GROUP"
+              ? selectedConversation.name
+              : selectedConversation.users.find(
+                  (u: any) => u.clerkId !== user?.id
+                )?.name || "Unknown User"}
+          </h2>
           <p className="text-xs text-muted-foreground">
-            {selectedContact.isOnline ? "Online" : "Last seen 2 hours ago"}
+            {selectedConversation.type === "GROUP"
+              ? `${selectedConversation.users.length} members`
+              : selectedConversation.users.find(
+                  (u: any) => u.clerkId !== user?.id
+                )?.isOnline
+              ? "Online"
+              : "Last seen 2 hours ago"}
           </p>
         </div>
       </div>
