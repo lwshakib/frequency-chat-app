@@ -26,6 +26,10 @@ export function ChatMessages() {
       setMessages([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      setMessages([]);
+    };
   }, [selectedConversation?.id]);
 
   useEffect(() => {
@@ -72,6 +76,7 @@ export function ChatMessages() {
                   ? (message as any).sender.clerkId === user.id
                   : message.senderId === user.id)
               ),
+              isGroup: selectedConversation.type === "GROUP" ? true: false,
             }}
           />
         ))}

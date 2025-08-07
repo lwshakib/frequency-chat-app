@@ -12,7 +12,7 @@ import { useSocket } from "@/contexts/SocketProvider";
 import { useChat } from "@/hooks/useChat";
 import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
-import { useUser } from "@clerk/clerk-react";
+import { SignOutButton, useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
 import { LogOut, Moon, Plus, Search, Settings, Sun } from "lucide-react";
 import React, { useEffect, useState } from "react";
@@ -49,6 +49,7 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
     typing,
     notifications,
     setNotifications,
+    markNotificationsAsRead,
   } = useSocket();
   const { user } = useUser();
 
@@ -183,10 +184,8 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                   )}
                   onClick={() => {
                     setSelectedConversation(conv);
-                    // Clear notifications for this conversation
-                    setNotifications((prev) =>
-                      prev.filter((n: any) => n.conversation?.id !== conv.id)
-                    );
+                    // Mark notifications as read for this conversation
+                    markNotificationsAsRead(conv.id);
                   }}
                 >
                   <div className="relative">
@@ -240,13 +239,17 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                           : conv.lastMessage || "No messages yet"}
                       </p>
                       {notifications.filter(
-                        (n: any) => n.conversation?.id === conv.id
+                        (n: any) =>
+                          n.conversation?.id === conv.id &&
+                          n.message?.isRead !== "READ"
                       ).length > 0 && (
                         <div className="flex-shrink-0 ml-2">
                           <div className="h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                             {
                               notifications.filter(
-                                (n: any) => n.conversation?.id === conv.id
+                                (n: any) =>
+                                  n.conversation?.id === conv.id &&
+                                  n.message?.isRead !== "READ"
                               ).length
                             }
                           </div>
@@ -294,12 +297,9 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                       const contact = {
                         id: item.id,
                         name: item.name,
-                        avatar: item.imageUrl,
-                        lastMessage: "", // No last message yet
-                        timestamp: "", // No timestamp yet
-                        isOnline: false, // Unknown
-                        unreadCount: 0,
+                        imageUrl: item.imageUrl,
                         clerkId: item.clerkId,
+                        email: item.email,
                       };
                       return (
                         <div
@@ -310,11 +310,21 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                             const conversation = {
                               id: item.id,
                               name: item.name,
-                              users: [contact, { clerkId: user?.id }],
-                              type: "SHOW",
+                              users: [
+                                contact,
+                                {
+                                  clerkId: user?.id,
+                                  imageUrl: user?.imageUrl,
+                                  name: user?.fullName,
+                                  email: user?.emailAddresses[0].emailAddress,
+                                  id: user?.id,
+                                },
+                              ],
+                              type: "SINGLE",
                               lastMessage: "",
                               updatedAt: new Date().toISOString(),
                               clerkId: item.clerkId,
+                              isTemporary: true,
                             };
                             console.log(conversation);
                             setSelectedConversation(conversation);
@@ -446,9 +456,11 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                 onClick={() => setShowSettings(true)}
               />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <SignOutButton>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </SignOutButton>
           </div>
         </div>
         <UserSettingsModal

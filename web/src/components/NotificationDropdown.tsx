@@ -28,52 +28,22 @@ interface Notification {
   avatar?: string;
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "message",
-    title: "New message from Sarah Chen",
-    description: "Hey! How are you doing?",
-    timestamp: "2 min ago",
-    isRead: false,
-    avatar:
-      "https://images.pexels.com/photos/774909/pexels-photo-774909.jpeg?auto=compress&cs=tinysrgb&w=400",
-  },
-  {
-    id: "2",
-    type: "friend_request",
-    title: "Friend request from Alex Rodriguez",
-    description: "Wants to connect with you",
-    timestamp: "1 hour ago",
-    isRead: false,
-    avatar:
-      "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=400",
-  },
-  {
-    id: "3",
-    type: "system",
-    title: "Profile updated successfully",
-    description: "Your profile information has been updated",
-    timestamp: "3 hours ago",
-    isRead: true,
-  },
-  {
-    id: "4",
-    type: "message",
-    title: "New message in Design Team",
-    description: "Meeting at 3 PM today",
-    timestamp: "5 hours ago",
-    isRead: true,
-    avatar:
-      "https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=400",
-  },
-];
 
 export function NotificationDropdown() {
-  const { notifications, setNotifications, setSelectedConversation } =
-    useSocket();
+  const {
+    notifications,
+    setNotifications,
+    setSelectedConversation,
+    markNotificationsAsRead,
+    markNotificationsAsOpened,
+    notificationsLoading,
+  } = useSocket();
   const { user } = useUser();
-  const unreadCount = notifications.length;
+  const unreadNotifications = notifications.filter(
+    (n: any) => n.isRead !== "READ"
+  );
+  const unopenedCount = notifications.filter((n: any) => !n.isOpened).length;
+  const unreadCount = unreadNotifications.length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -90,24 +60,31 @@ export function NotificationDropdown() {
 
   const handleNotificationClick = (notificationIndex: number) => {
     console.log("Notification clicked:", notificationIndex);
-    const notification = notifications[notificationIndex];
+    const notification = unreadNotifications[notificationIndex];
 
     // Set the conversation as selected
     setSelectedConversation(notification.conversation);
 
-    // Remove the notification when clicked
-    setNotifications((prev) =>
-      prev.filter((_, index) => index !== notificationIndex)
-    );
+    // Mark notifications as read for this conversation
+    markNotificationsAsRead(notification.conversation.id);
   };
 
   const clearAllNotifications = () => {
     console.log("Clear all notifications");
-    setNotifications([]);
+    // Mark all notifications as read instead of removing them
+    setNotifications((prev) =>
+      prev.map((notification) => ({ ...notification, isRead: "READ" }))
+    );
   };
 
   return (
-    <DropdownMenu>
+    <DropdownMenu
+      onOpenChange={(open) => {
+        if (open) {
+          markNotificationsAsOpened();
+        }
+      }}
+    >
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -115,12 +92,12 @@ export function NotificationDropdown() {
           className="relative h-9 w-9 rounded-full hover:bg-muted/50 transition-all duration-200"
         >
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
+          {unopenedCount > 0 && (
             <Badge
               variant="destructive"
               className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center animate-pulse"
             >
-              {unreadCount > 9 ? "9+" : unreadCount}
+              {unopenedCount > 9 ? "9+" : unopenedCount}
             </Badge>
           )}
         </Button>
@@ -131,7 +108,7 @@ export function NotificationDropdown() {
           <DropdownMenuLabel className="p-0 text-base font-semibold">
             Notifications
           </DropdownMenuLabel>
-          {notifications.length > 0 && (
+          {unreadNotifications.length > 0 && (
             <Button
               variant="ghost"
               size="sm"
@@ -144,14 +121,19 @@ export function NotificationDropdown() {
         </div>
 
         <ScrollArea className="max-h-96">
-          {notifications.length === 0 ? (
+          {notificationsLoading ? (
+            <div className="p-8 text-center text-muted-foreground">
+              <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+              <p>Loading notifications...</p>
+            </div>
+          ) : unreadNotifications.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground">
               <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No notifications yet</p>
             </div>
           ) : (
             <div className="p-2">
-              {notifications.map((notification, index) => (
+              {unreadNotifications.map((notification, index) => (
                 <DropdownMenuItem
                   key={index}
                   className="p-3 cursor-pointer focus:bg-muted/50 rounded-lg mb-1"
@@ -173,7 +155,9 @@ export function NotificationDropdown() {
                                 (u: any) => u.clerkId !== user?.id
                               )?.name || "Unknown User"}
                         </p>
-                        <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0 ml-2 mt-1" />
+                        {!notification.isOpened && (
+                          <div className="h-2 w-2 bg-primary rounded-full flex-shrink-0 ml-2 mt-1" />
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {notification.message.content}
@@ -189,7 +173,7 @@ export function NotificationDropdown() {
           )}
         </ScrollArea>
 
-        {notifications.length > 0 && (
+        {unreadNotifications.length > 0 && (
           <>
             <DropdownMenuSeparator />
             <div className="p-2">

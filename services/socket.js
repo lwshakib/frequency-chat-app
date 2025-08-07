@@ -53,12 +53,9 @@ class SocketService {
       });
 
       socket.on("event:message", async ({data}) => {
-        console.log("Message received", data);
         data.conversation.users.forEach((user) => {
           socket.in(user.clerkId).emit("message", data);
         });
-
-        console.log("Message sent to all users", data);
       });
 
       socket.on("disconnect", () => {

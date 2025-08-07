@@ -28,9 +28,19 @@ export function MessageInput() {
   const { sendMessage } = useSocket();
   const { theme } = useTheme(); // useTheme now returns ThemeContextType
   const { user } = useUser();
-  const { typing, startTyping, endTyping, setMessages, setTyping, selectedConversation, setSelectedConversation, createGroupOnSocket } = useSocket();
+  const {
+    typing,
+    startTyping,
+    endTyping,
+    setMessages,
+    setTyping,
+    selectedConversation,
+    setSelectedConversation,
+    createGroupOnSocket,
+    setConversations,
+  } = useSocket();
 
-  const handleSend = async() => {
+  const handleSend = async () => {
     if (
       (message.trim() || selectedFiles.length > 0) &&
       selectedConversation?.id
@@ -40,7 +50,6 @@ export function MessageInput() {
         // Handle file upload logic here
       }
 
-      
       const messageJson = {
         id: Date.now().toString(),
         sender: {
@@ -50,8 +59,10 @@ export function MessageInput() {
           imageUrl: user?.imageUrl || "",
         },
         content: message,
-        updatedAt: new Date().toISOString(),
         type: "text",
+        isRead: "UNREAD",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       endTyping({
@@ -59,41 +70,41 @@ export function MessageInput() {
         name: user?.fullName,
         email: user?.emailAddresses[0].emailAddress,
         imageUrl: user?.imageUrl,
-        conversation: selectedConversation
-      })
+        conversation: selectedConversation,
+      });
       if (message.trim()) {
         setMessages((prev: any[]) => [...prev, messageJson]);
-        sendMessage({
-          message: messageJson,
-          conversation: selectedConversation,
-          senderId: user?.id,
-        });
-        if(selectedConversation.type === "SHOW"){
-          const {data} = await axios.post("/api/conversations", {
+
+        if (selectedConversation?.isTemporary) {
+          const { data } = await axios.post("/api/conversations", {
             type: "single",
             ids: selectedConversation.users.map((user: any) => user.clerkId),
-          })
-          createGroupOnSocket(data.data)
+          });
+
           sendMessage({
             message: messageJson,
             conversation: data.data,
             senderId: user?.id,
-          })
+          });
+          setConversations((prev: any[]) => [...prev, data.data]);
 
-          axios.post("/api/messages/"+data.data.id, {
-            content: message,
-            type: "text",
-          })
-          setSelectedConversation(data.data)
-        }else{
-          axios.post("/api/messages/"+selectedConversation.id, {
+          axios.post("/api/messages/" + data.data.id, {
             content: message,
             type: "text",
           });
+          setSelectedConversation({ ...data.data, isTemporary: false });
+        } else {
+          axios.post("/api/messages/" + selectedConversation.id, {
+            content: message,
+            type: "text",
+          });
+          sendMessage({
+            message: messageJson,
+            conversation: selectedConversation,
+            senderId: user?.id,
+          });
         }
-     
       }
-
 
       setMessage("");
       setSelectedFiles([]);
@@ -148,14 +159,14 @@ export function MessageInput() {
   };
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
-    if(!typing){
+    if (!typing) {
       const data = {
         clerkId: user?.id,
         name: user?.fullName,
         email: user?.emailAddresses[0].emailAddress,
         imageUrl: user?.imageUrl,
-        conversation: selectedConversation
-      }
+        conversation: selectedConversation,
+      };
       setTyping(data);
       startTyping(data);
     }
@@ -164,14 +175,14 @@ export function MessageInput() {
     setTimeout(() => {
       var timeNow = new Date().getTime();
       var timeDiff = timeNow - lastTypingTime;
-      if(timeDiff >= timerLength && typing){
+      if (timeDiff >= timerLength && typing) {
         setTyping(null);
         endTyping({
           clerkId: user?.id,
           name: user?.fullName,
           email: user?.emailAddresses[0].emailAddress,
           imageUrl: user?.imageUrl,
-          conversation: selectedConversation
+          conversation: selectedConversation,
         });
       }
     }, timerLength);

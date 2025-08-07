@@ -17,9 +17,10 @@ CREATE TABLE "public"."Message" (
     "type" TEXT NOT NULL DEFAULT 'TEXT',
     "content" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
-    "receiverId" TEXT,
     "conversationId" TEXT NOT NULL,
+    "isRead" TEXT NOT NULL DEFAULT 'UNREAD',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
 );
@@ -35,6 +36,19 @@ CREATE TABLE "public"."Conversation" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."Notifications" (
+    "id" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "messageId" TEXT NOT NULL,
+    "isOpened" BOOLEAN NOT NULL DEFAULT false,
+    "conversationId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Notifications_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -56,6 +70,15 @@ ALTER TABLE "public"."Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "public"."Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "public"."Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Notifications" ADD CONSTRAINT "Notifications_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "public"."User"("clerkId") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Notifications" ADD CONSTRAINT "Notifications_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "public"."Message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."Notifications" ADD CONSTRAINT "Notifications_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "public"."Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."_ConversationToUser" ADD CONSTRAINT "_ConversationToUser_A_fkey" FOREIGN KEY ("A") REFERENCES "public"."Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;

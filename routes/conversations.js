@@ -29,6 +29,7 @@ conversationsRouter.get("/", async (req, res) => {
 
 conversationsRouter.post("/", async (req, res) => {
     const {ids, type, name} = req.body;
+    const {userId} = req.clerk;
     
     if(!ids || !type){
         return res.json({ message: "Invalid request" });
@@ -39,42 +40,46 @@ conversationsRouter.post("/", async (req, res) => {
     if(type === "single" && ids.length > 2){
         return res.json({ message: "Invalid number of users" });
     }
+    ids.push(userId)
 
-    const existingConversation = await prisma.conversation.findFirst({
-        where: {
-          type: type.toUpperCase(),
-          users: {
-            some: {
-              clerkId: {
-                in: ids,
+    if(type === "single"){
+        const existingConversation = await prisma.conversation.findFirst({
+            where: {
+              type: type.toUpperCase(),
+              users: {
+                every: {
+                  clerkId: {
+                    in: ids,
+                  },
+                },
               },
             },
-          },
-        },
-        include: {
-          users: true,
-        },
-      });
-      
-    if(existingConversation){
-        return res.json({ message: "Conversation already exists", data:existingConversation });
+            include: {
+              users: true,
+            },
+          });
+          
+        if(existingConversation){
+            return res.json({ message: "Conversation already exists", data:existingConversation });
+        }
+    }else{
+
+        const newConversation = await prisma.conversation.create({
+            data: {
+                users: {
+                    connect: ids.map(id => ({ clerkId: id })),
+                },
+                type: type.toUpperCase(),
+                name: name,
+            },
+            include:{
+                users:true
+            }
+        });
+    
+        res.json({ message: "Conversation created successfully", data:newConversation });
     }
 
-
-    const newConversation = await prisma.conversation.create({
-        data: {
-            users: {
-                connect: ids.map(id => ({ clerkId: id })),
-            },
-            type: type.toUpperCase(),
-            name: name,
-        },
-        include:{
-            users:true
-        }
-    });
-
-    res.json({ message: "Conversation created successfully", data:newConversation });
 });
 
 export default conversationsRouter;
