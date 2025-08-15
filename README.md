@@ -8,6 +8,12 @@ A real-time chat application built with Node.js, Express, React, and Socket.IO, 
 - **User Authentication**: Secure authentication powered by Clerk
 - **File Sharing**: Support for file uploads and sharing
 - **Conversation Management**: Create and manage individual and group conversations
+- **Search Functionality**:
+  - Search conversations by name, user names, or email addresses
+  - Real-time search with debounced input
+  - Search result highlighting
+  - Keyboard shortcut (Ctrl/Cmd + K) to focus search
+  - Search in add contact/group dialogs
 - **Notifications**: Real-time notifications for new messages
 - **Responsive Design**: Mobile-first design with dark/light theme support
 - **Modern UI**: Built with Radix UI components and Tailwind CSS
@@ -239,4 +245,3 @@ This project is licensed under the ISC License.
 **lwshakib**
 
 - GitHub: [@lwshakib](https://github.com/lwshakib)
-

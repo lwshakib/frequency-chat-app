@@ -14,8 +14,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { cn } from "@/lib/utils";
 import { SignOutButton, useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
-import { LogOut, Moon, Plus, Search, Settings, Sun } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { LogOut, Moon, Plus, Search, Settings, Sun, X } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { UserSettingsModal } from "./UserSettingsModal";
@@ -37,8 +37,15 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
   const [usersError, setUsersError] = useState<string | null>(null);
   const [groupName, setGroupName] = useState("");
   const [groupSearch, setGroupSearch] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
   const [selectedGroupUsers, setSelectedGroupUsers] = useState<ApiUser[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const [isSearching, setIsSearching] = useState(false);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
   const {
     conversations,
     setConversations,
@@ -50,29 +57,132 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
   } = useSocket();
   const { user } = useUser();
 
+  // Highlight search terms function
+  const highlightSearchTerm = (text: string, searchTerm: string) => {
+    if (!searchTerm.trim()) return text;
+
+    const regex = new RegExp(
+      `(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi"
+    );
+    const parts = text.split(regex);
+
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <mark
+          key={index}
+          className="bg-yellow-200 dark:bg-yellow-800/50 px-0.5 rounded"
+        >
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
+  // Debounced search function
+  const debouncedSearch = useCallback(
+    (query: string) => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+
+      const timeout = setTimeout(() => {
+        fetchConversations(query);
+      }, 300);
+
+      setSearchTimeout(timeout);
+    },
+    [searchTimeout]
+  );
+
+  // Fetch conversations with search
+  const fetchConversations = async (search?: string) => {
+    if (search) {
+      setIsSearching(true);
+    } else {
+      setConversationsLoading(true);
+    }
+
+    try {
+      const url = search
+        ? `/api/conversations?search=${encodeURIComponent(search)}`
+        : "/api/conversations";
+
+      const res = await fetch(url);
+      const data = await res.json();
+      setConversations(data.conversations || []);
+    } catch (error) {
+      console.error("Error fetching conversations:", error);
+      toast.error("Failed to fetch conversations");
+    } finally {
+      setConversationsLoading(false);
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    debouncedSearch(query);
+  };
+
+  // Clear search
+  const clearSearch = () => {
+    setSearchQuery("");
+    fetchConversations();
+  };
+
   useEffect(() => {
-    fetch("/api/conversations")
-      .then((res) => res.json())
-      .then((data) => {
-        setConversations(data.conversations || []);
-        setConversationsLoading(false);
-      });
+    fetchConversations();
   }, []);
+
+  // Keyboard shortcut for search (Ctrl/Cmd + K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
+  // Fetch users with search
+  const fetchUsers = async (search?: string) => {
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      const url = search
+        ? `/api/users?search=${encodeURIComponent(search)}`
+        : "/api/users";
+
+      const res = await fetch(url);
+      const data = await res.json();
+      setUsers(data.users || []);
+    } catch (error) {
+      setUsersError("Failed to fetch users");
+    } finally {
+      setUsersLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (showAddDialog) {
-      setUsersLoading(true);
-      setUsersError(null);
-      fetch("/api/users")
-        .then((res) => res.json())
-        .then((data) => {
-          setUsers(data.users || []);
-          setUsersLoading(false);
-        })
-        .catch(() => {
-          setUsersError("Failed to fetch users");
-          setUsersLoading(false);
-        });
+      fetchUsers();
     }
   }, [showAddDialog]);
 
@@ -139,16 +249,42 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
         <div className="relative group">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search contacts..."
-            className="pl-9 h-10 bg-muted/30 border-border/50 focus:border-primary/50 transition-all duration-200"
+            ref={searchInputRef}
+            placeholder="Search conversations... (Ctrl+K)"
+            className="pl-9 pr-9 h-10 bg-muted/30 border-border/50 focus:border-primary/50 transition-all duration-200"
+            value={searchQuery}
+            onChange={handleSearchChange}
           />
+          {isSearching && (
+            <div className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            </div>
+          )}
+          {searchQuery && !isSearching && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-full"
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Conversations List */}
       <div className="px-4 pt-4 pb-2">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-semibold">Conversations</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Conversations</h2>
+            {searchQuery && (
+              <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                {conversations.length} result
+                {conversations.length !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -191,8 +327,17 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
             ))}
           </div>
         ) : conversations.length === 0 ? (
-          <div className="text-muted-foreground text-sm">
-            No conversations found.
+          <div className="text-muted-foreground text-sm text-center py-4">
+            {searchQuery ? (
+              <div className="space-y-2">
+                <p>No conversations found for "{searchQuery}"</p>
+                <p className="text-xs">
+                  Try searching for a different name or email
+                </p>
+              </div>
+            ) : (
+              "No conversations found."
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-y-2 flex-grow">
@@ -243,9 +388,13 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                     <div className="flex items-center justify-between">
                       <h3 className="font-medium text-sm truncate">
                         {conv.type === "GROUP"
-                          ? conv.name
-                          : conv.users.find((u: any) => u.clerkId !== user?.id)
-                              ?.name || "Unknown User"}
+                          ? highlightSearchTerm(conv.name || "", searchQuery)
+                          : highlightSearchTerm(
+                              conv.users.find(
+                                (u: any) => u.clerkId !== user?.id
+                              )?.name || "Unknown User",
+                              searchQuery
+                            )}
                       </h3>
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(conv.updatedAt), {
@@ -297,7 +446,15 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
               <TabsTrigger value="group">Group</TabsTrigger>
             </TabsList>
             <TabsContent value="contact">
-              <Input placeholder="Search contacts..." className="mb-2" />
+              <Input
+                placeholder="Search contacts..."
+                className="mb-2"
+                value={contactSearch}
+                onChange={(e) => {
+                  setContactSearch(e.target.value);
+                  fetchUsers(e.target.value);
+                }}
+              />
               {usersLoading && (
                 <div className="space-y-3 max-h-60 overflow-y-auto">
                   {/* Skeleton for multiple user items */}
@@ -401,7 +558,10 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                   placeholder="Search users..."
                   className="mb-2"
                   value={groupSearch}
-                  onChange={(e) => setGroupSearch(e.target.value)}
+                  onChange={(e) => {
+                    setGroupSearch(e.target.value);
+                    fetchUsers(e.target.value);
+                  }}
                 />
               </div>
               {usersLoading && (
@@ -434,50 +594,43 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
               )}
               {!usersLoading && !usersError && (
                 <div className="flex flex-col gap-2 max-h-48 overflow-y-auto mb-2">
-                  {users
-                    .filter((user) =>
-                      user.name
-                        .toLowerCase()
-                        .includes(groupSearch.toLowerCase())
-                    )
-                    .map((user) => (
-                      <label
-                        key={user.id}
-                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedGroupUsers.some(
-                            (selectedUser) => selectedUser.id === user.id
-                          )}
-                          onChange={(e) => {
-                            setSelectedGroupUsers((prev) =>
-                              e.target.checked
-                                ? [...prev, user]
-                                : prev.filter(
-                                    (selectedUser) =>
-                                      selectedUser.id !== user.id
-                                  )
-                            );
-                          }}
-                          className="form-checkbox accent-primary h-4 w-4"
-                        />
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={user.imageUrl} alt={user.name} />
-                          <AvatarFallback>
-                            {user.name?.slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
-                            {user.name}
-                          </div>
-                          <div className="text-xs text-muted-foreground truncate">
-                            {user.email}
-                          </div>
+                  {users.map((user) => (
+                    <label
+                      key={user.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedGroupUsers.some(
+                          (selectedUser) => selectedUser.id === user.id
+                        )}
+                        onChange={(e) => {
+                          setSelectedGroupUsers((prev) =>
+                            e.target.checked
+                              ? [...prev, user]
+                              : prev.filter(
+                                  (selectedUser) => selectedUser.id !== user.id
+                                )
+                          );
+                        }}
+                        className="form-checkbox accent-primary h-4 w-4"
+                      />
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.imageUrl} alt={user.name} />
+                        <AvatarFallback>
+                          {user.name?.slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
+                          {user.name}
                         </div>
-                      </label>
-                    ))}
+                        <div className="text-xs text-muted-foreground truncate">
+                          {user.email}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
                 </div>
               )}
               {selectedGroupUsers.length >= 2 && (

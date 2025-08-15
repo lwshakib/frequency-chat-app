@@ -5,14 +5,63 @@ const conversationsRouter = express.Router();
 
 conversationsRouter.get("/", async (req, res) => {
   const { userId } = req.clerk;
-  const conversations = await prisma.conversation.findMany({
-    where: {
-      users: {
-        some: {
-          clerkId: userId,
-        },
+  const { search } = req.query;
+
+  let whereClause = {
+    users: {
+      some: {
+        clerkId: userId,
       },
     },
+  };
+
+  // Add search functionality
+  if (search && search.trim()) {
+    const searchTerm = search.trim();
+    whereClause = {
+      ...whereClause,
+      OR: [
+        {
+          name: {
+            contains: searchTerm,
+            mode: "insensitive",
+          },
+        },
+        {
+          users: {
+            some: {
+              AND: [
+                {
+                  clerkId: {
+                    not: userId,
+                  },
+                },
+                {
+                  OR: [
+                    {
+                      name: {
+                        contains: searchTerm,
+                        mode: "insensitive",
+                      },
+                    },
+                    {
+                      email: {
+                        contains: searchTerm,
+                        mode: "insensitive",
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      ],
+    };
+  }
+
+  const conversations = await prisma.conversation.findMany({
+    where: whereClause,
     include: {
       users: true,
     },
