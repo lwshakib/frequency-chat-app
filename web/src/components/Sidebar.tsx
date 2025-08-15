@@ -187,6 +187,10 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
   }, [showAddDialog]);
 
   const handleCreateGroup = async () => {
+    if (!groupName.trim()) {
+      toast.error("Group name is required");
+      return;
+    }
     await toast.promise(
       fetch("/api/conversations", {
         method: "POST",
@@ -636,11 +640,12 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                   ))}
                 </div>
               )}
-              {selectedGroupUsers.length >= 2 && (
-                <Button className="w-full mt-2" onClick={handleCreateGroup}>
-                  Create Group
-                </Button>
-              )}
+              {selectedGroupUsers.length >= 2 &&
+                groupName.trim().length > 0 && (
+                  <Button className="w-full mt-2" onClick={handleCreateGroup}>
+                    Create Group
+                  </Button>
+                )}
             </TabsContent>
           </Tabs>
         </DialogContent>

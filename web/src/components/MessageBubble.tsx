@@ -205,49 +205,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
                         </div>
                       </div>
                     ) : isAudio ? (
-                      <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors group">
-                        <div className="flex-shrink-0 w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <svg
-                            className="w-5 h-5 text-primary"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
-                            />
-                          </svg>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {fileName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Audio file
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => window.open(fileUrl, "_blank")}
-                          className="flex-shrink-0 p-2 hover:bg-primary/20 text-primary rounded-full transition-colors"
-                          title="Open audio"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                            />
-                          </svg>
-                        </button>
+                      <div className="relative overflow-hidden rounded-lg  bg-muted/20">
+                        <audio
+                          src={fileUrl}
+                          controls
+                          preload="metadata"
+                          className="w-full bg-transparent min-w-[300px]"
+                        />
+                   
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors">
