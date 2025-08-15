@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSocket } from "@/contexts/SocketProvider";
+import { useTheme } from "@/hooks/useTheme";
 import { useUser } from "@clerk/clerk-react";
 import { Menu, MoreVertical, Phone, Trash2, Video } from "lucide-react";
 import { useState } from "react";
@@ -26,6 +27,7 @@ export function ChatHeader() {
     setSelectedConversation,
     removeGroupOnSocket,
   } = useSocket();
+  const { theme } = useTheme();
   const { user } = useUser();
   const [showConversationDialog, setShowConversationDialog] = useState(false);
 
@@ -63,8 +65,34 @@ export function ChatHeader() {
     );
   };
 
+  // If no conversation is selected, show a minimal header with just the sidebar toggle
   if (!selectedConversation) {
-    return null;
+    return (
+      <div className="flex items-center justify-between p-4 border-b border-border/50 bg-card/95 backdrop-blur-sm lg:hidden">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => toggleSidebar()}
+            className="lg:hidden h-9 w-9 rounded-full hover:bg-muted/50 transition-all duration-200"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+          <div
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity duration-200 lg:hidden"
+            onClick={() => setSelectedConversation(null)}
+          >
+            <img
+              src={theme === "light" ? "/light_logo.svg" : "/dark_logo.svg"}
+              className="size-6"
+            />
+            <h1 className="text-lg font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Frequency
+            </h1>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

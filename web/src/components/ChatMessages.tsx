@@ -170,12 +170,17 @@ export function ChatMessages() {
   if (!selectedConversation?.id) {
     return (
       <div className="flex-1 flex items-center justify-center bg-muted/20 h-full min-h-0">
-        <div className="text-center">
+        <div className="text-center px-4">
           <div className="mb-4 text-6xl">💬</div>
-          <h3 className="text-xl font-semibold mb-2">Welcome to ChatApp</h3>
-          <p className="text-muted-foreground">
-            Select a contact to start messaging
+          <h3 className="text-xl font-semibold mb-2">Welcome to Frequency</h3>
+          <p className="text-muted-foreground mb-4">
+            Select a conversation to start messaging
           </p>
+          <div className="text-sm text-muted-foreground/70 space-y-1">
+            <p>💡 Use the search bar to find conversations quickly</p>
+            <p>📱 Tap the menu button to view all conversations</p>
+            <p>➕ Create new groups or start individual chats</p>
+          </div>
         </div>
       </div>
     );

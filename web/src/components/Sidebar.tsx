@@ -218,7 +218,10 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
       {/* Header */}
       <div className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity duration-200"
+            onClick={() => setSelectedConversation(null)}
+          >
             <img
               src={theme === "light" ? "/light_logo.svg" : "/dark_logo.svg"}
               className="size-8"

@@ -49,8 +49,15 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user } = useUser();
+
+  // Auto-open sidebar on mobile when no conversation is selected
+  useEffect(() => {
+    if (!selectedConversation && window.innerWidth < 1024) {
+      setIsSidebarOpen(true);
+    }
+  }, [selectedConversation]);
 
   const sendMessage: ISocketContext["sendMessage"] = useCallback(
     (msg) => {

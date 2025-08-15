@@ -20,7 +20,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         className={cn(
           "px-4 py-2 rounded-2xl max-w-[70%] flex flex-col gap-1 shadow-sm border-none",
           message.isOwn
-            ? "bg-primary text-primary-foreground rounded-br-md"
+            ? "bg-muted text-muted-foreground rounded-br-md"
             : "bg-muted text-muted-foreground rounded-bl-md"
         )}
       >
