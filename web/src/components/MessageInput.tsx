@@ -45,7 +45,7 @@ export function MessageInput() {
   const handleSend = async () => {
     if (
       (message.trim() || selectedFiles.length > 0 || audioBlob) &&
-      selectedConversation?.id
+      (selectedConversation?.id || selectedConversation?.isTemporary)
     ) {
       // Store the original message content before clearing
       const originalMessage = message.trim();
@@ -87,6 +87,7 @@ export function MessageInput() {
         email: user?.emailAddresses[0].emailAddress,
         imageUrl: user?.imageUrl,
         conversation: selectedConversation,
+        users: selectedConversation?.users || [], // Add users array for temporary conversations
       });
 
       // Clear input fields immediately so user can send more messages
@@ -173,49 +174,97 @@ export function MessageInput() {
 
         // Handle conversation creation or message sending
         if (selectedConversation?.isTemporary) {
-          const { data } = await axios.post("/api/conversations", {
-            type: "single",
-            ids: selectedConversation.users.map((user: any) => user.clerkId),
-          });
+          try {
+            console.log(
+              "Creating temporary conversation with users:",
+              selectedConversation.users
+            );
+            const { data } = await axios.post("/api/conversations", {
+              type: "single",
+              ids: selectedConversation.users.map((user: any) => user.clerkId),
+            });
+            console.log("Conversation created successfully:", data);
 
-          sendMessage({
-            message: finalMessageJson,
-            conversation: data.data,
-            senderId: user?.id,
-          });
-          setConversations((prev: any[]) => [...prev, data.data]);
+            // Send message to API first
+            axios.post("/api/messages/" + data.data.id, {
+              content: originalMessage,
+              type:
+                fileUrls.length > 0
+                  ? originalMessage
+                    ? "mixed"
+                    : "file"
+                  : "text",
+              files: fileUrls.length > 0 ? fileUrls : undefined,
+            });
+            console.log("Message sent to API successfully");
 
-          // Send message to API
-          axios.post("/api/messages/" + data.data.id, {
-            content: originalMessage,
-            type:
-              fileUrls.length > 0
-                ? originalMessage
-                  ? "mixed"
-                  : "file"
-                : "text",
-            files: fileUrls.length > 0 ? fileUrls : undefined,
-          });
+            // Then send via socket
+            sendMessage({
+              message: finalMessageJson,
+              conversation: data.data,
+              senderId: user?.id,
+            });
+            console.log("Message sent via socket successfully");
 
-          setSelectedConversation({ ...data.data, isTemporary: false });
+            // Update local state
+            setConversations((prev: any[]) => [...prev, data.data]);
+            setSelectedConversation({ ...data.data, isTemporary: false });
+            console.log("Local state updated successfully");
+          } catch (error) {
+            console.error(
+              "Error creating conversation or sending message:",
+              error
+            );
+            // Update message to show error state
+            setMessages((prev: any[]) =>
+              prev.map((msg) =>
+                msg.id === tempMessageId
+                  ? {
+                      ...msg,
+                      isLoading: false,
+                      error: "Failed to create conversation",
+                    }
+                  : msg
+              )
+            );
+            return;
+          }
         } else {
-          // Send message to API
-          axios.post("/api/messages/" + selectedConversation.id, {
-            content: originalMessage,
-            type:
-              fileUrls.length > 0
-                ? originalMessage
-                  ? "mixed"
-                  : "file"
-                : "text",
-            files: fileUrls.length > 0 ? fileUrls : undefined,
-          });
+          try {
+            // Send message to API
+            axios.post("/api/messages/" + selectedConversation.id, {
+              content: originalMessage,
+              type:
+                fileUrls.length > 0
+                  ? originalMessage
+                    ? "mixed"
+                    : "file"
+                  : "text",
+              files: fileUrls.length > 0 ? fileUrls : undefined,
+            });
 
-          sendMessage({
-            message: finalMessageJson,
-            conversation: selectedConversation,
-            senderId: user?.id,
-          });
+            // Then send via socket
+            sendMessage({
+              message: finalMessageJson,
+              conversation: selectedConversation,
+              senderId: user?.id,
+            });
+          } catch (error) {
+            console.error("Error sending message:", error);
+            // Update message to show error state
+            setMessages((prev: any[]) =>
+              prev.map((msg) =>
+                msg.id === tempMessageId
+                  ? {
+                      ...msg,
+                      isLoading: false,
+                      error: "Failed to send message",
+                    }
+                  : msg
+              )
+            );
+            return;
+          }
         }
       };
 

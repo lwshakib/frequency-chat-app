@@ -509,7 +509,7 @@ export function Sidebar({ toggleButton }: { toggleButton: React.ReactNode }) {
                           onClick={() => {
                             // Create a conversation object and set it as selected
                             const conversation = {
-                              id: item.id,
+                              id: `temp_${Date.now()}_${Math.random()}`, // Use a temporary ID
                               name: item.name,
                               users: [
                                 contact,

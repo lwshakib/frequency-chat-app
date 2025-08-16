@@ -73,16 +73,22 @@ export const createConversation = async (req, res) => {
   const { ids, type, name } = req.body;
   const { userId } = req.clerk;
 
+  console.log("Creating conversation with:", { ids, type, name, userId });
+
   if (!ids || !type) {
+    console.log("Invalid request - missing ids or type");
     return res.json({ message: "Invalid request" });
   }
   if (type !== "single" && type !== "group") {
+    console.log("Invalid conversation type:", type);
     return res.json({ message: "Invalid conversation type" });
   }
   if (type === "single" && ids.length > 2) {
+    console.log("Invalid number of users for single conversation:", ids.length);
     return res.json({ message: "Invalid number of users" });
   }
   ids.push(userId);
+  console.log("Final user IDs:", ids);
 
   if (type === "single") {
     const existingConversation = await prisma.conversation.findFirst({
@@ -102,11 +108,33 @@ export const createConversation = async (req, res) => {
     });
 
     if (existingConversation) {
+      console.log("Found existing conversation:", existingConversation.id);
       return res.json({
         message: "Conversation already exists",
         data: existingConversation,
       });
     }
+
+    console.log("Creating new single conversation...");
+    // Create new single conversation if none exists
+    const newConversation = await prisma.conversation.create({
+      data: {
+        users: {
+          connect: ids.map((id) => ({ clerkId: id })),
+        },
+        type: type.toUpperCase(),
+        name: name,
+      },
+      include: {
+        users: true,
+      },
+    });
+
+    console.log("New conversation created successfully:", newConversation.id);
+    res.json({
+      message: "Conversation created successfully",
+      data: newConversation,
+    });
   } else {
     const newConversation = await prisma.conversation.create({
       data: {

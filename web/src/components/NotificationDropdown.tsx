@@ -13,8 +13,6 @@ import { useSocket } from "@/contexts/SocketProvider";
 import { useUser } from "@clerk/clerk-react";
 import { Bell, MessageCircle } from "lucide-react";
 
-
-
 export function NotificationDropdown() {
   const {
     notifications,

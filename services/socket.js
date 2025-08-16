@@ -28,15 +28,21 @@ class SocketService {
       });
 
       socket.on("typing:start", ({ data }) => {
-        socket
-          .in(data.conversation.users.map((user) => user.clerkId))
-          .emit("typing:start", data);
+        // Handle both regular and temporary conversations
+        const users = data.conversation?.users || data.users || [];
+        if (users.length > 0) {
+          socket
+            .in(users.map((user) => user.clerkId))
+            .emit("typing:start", data);
+        }
       });
 
       socket.on("typing:end", ({ data }) => {
-        socket
-          .in(data.conversation.users.map((user) => user.clerkId))
-          .emit("typing:end", data);
+        // Handle both regular and temporary conversations
+        const users = data.conversation?.users || data.users || [];
+        if (users.length > 0) {
+          socket.in(users.map((user) => user.clerkId)).emit("typing:end", data);
+        }
       });
 
       socket.on("create:group", ({ data }) => {
@@ -53,9 +59,13 @@ class SocketService {
       });
 
       socket.on("event:message", async ({ data }) => {
-        data.conversation.users.forEach((user) => {
-          socket.in(user.clerkId).emit("message", data);
-        });
+        // Handle both regular and temporary conversations
+        const users = data.conversation?.users || data.users || [];
+        if (users.length > 0) {
+          users.forEach((user) => {
+            socket.in(user.clerkId).emit("message", data);
+          });
+        }
       });
 
       socket.on("disconnect", () => {
