@@ -11,7 +11,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+<<<<<<< HEAD
 import { Label } from "@/components/ui/label";
+=======
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
 import {
   Sidebar,
   SidebarContent,
@@ -21,7 +24,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+<<<<<<< HEAD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+=======
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
 import { useTheme } from "@/hooks/use-theme";
 import { Bell, LogOut, Moon, Sun, UserPlus, Users } from "lucide-react";
 import { Link } from "react-router";
@@ -127,6 +133,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </DialogContent>
             </Dialog>
           </div>
+<<<<<<< HEAD
           <Dialog>
             <DialogTrigger asChild>
               <Button className="w-full justify-start">
@@ -194,6 +201,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </Tabs>
             </DialogContent>
           </Dialog>
+=======
+          <Button className="w-full justify-start">
+            <UserPlus className="h-4 w-4 mr-2" />
+            Create Contact
+          </Button>
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
           <Input placeholder="Search contacts..." className="w-full" />
 
           {/* Groups and Contacts */}

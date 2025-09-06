@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,14 @@ import {
   Smile,
   Video,
 } from "lucide-react";
+=======
+import { AppSidebar } from "@/components/app-sidebar"
+import {
+  SidebarInset,
+  SidebarProvider,
+} from "@/components/ui/sidebar"
+
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
 
 export default function ChatPage() {
   return (
@@ -37,12 +46,17 @@ export default function ChatPage() {
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
+<<<<<<< HEAD
           "--header-height": "calc(var(--spacing) * 16)",
+=======
+          "--header-height": "calc(var(--spacing) * 12)",
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
         } as React.CSSProperties
       }
     >
       <AppSidebar variant="inset" />
       <SidebarInset>
+<<<<<<< HEAD
         <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
           <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
             <SidebarTrigger className="-ml-1" />
@@ -194,9 +208,21 @@ export default function ChatPage() {
             <Button size="icon" className="h-8 w-8">
               <Send className="h-4 w-4" />
             </Button>
+=======
+        <div className="flex flex-1 flex-col">
+          <div className="@container/main flex flex-1 flex-col gap-2">
+            <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
+              <div className="px-4 lg:px-6">
+              </div>
+            </div>
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
           </div>
         </div>
       </SidebarInset>
     </SidebarProvider>
+<<<<<<< HEAD
   );
+=======
+  )
+>>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
 }
