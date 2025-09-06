@@ -71,9 +71,6 @@ export const getConversations = async (req, res) => {
 
 export const createConversation = async (req, res) => {
   const { ids, type, name } = req.body;
-  const { userId } = req.clerk;
-
-  console.log("Creating conversation with:", { ids, type, name, userId });
 
   if (!ids || !type) {
     console.log("Invalid request - missing ids or type");
@@ -87,8 +84,6 @@ export const createConversation = async (req, res) => {
     console.log("Invalid number of users for single conversation:", ids.length);
     return res.json({ message: "Invalid number of users" });
   }
-  ids.push(userId);
-  console.log("Final user IDs:", ids);
 
   if (type === "single") {
     const existingConversation = await prisma.conversation.findFirst({
