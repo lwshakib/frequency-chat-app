@@ -1,8 +1,8 @@
+import { CreateConversationSchema } from "../schemas/conversations.schemas.js";
 import prisma from "../services/prisma.js";
 
 export const getConversations = async (req, res) => {
-  const { userId } = req.clerk;
-  const { search } = req.query;
+  const { search, userId } = req.query;
 
   let whereClause = {
     users: {
@@ -72,27 +72,36 @@ export const getConversations = async (req, res) => {
 export const createConversation = async (req, res) => {
   const { ids, type, name } = req.body;
 
-  if (!ids || !type) {
-    console.log("Invalid request - missing ids or type");
-    return res.json({ message: "Invalid request" });
-  }
-  if (type !== "single" && type !== "group") {
-    console.log("Invalid conversation type:", type);
-    return res.json({ message: "Invalid conversation type" });
-  }
-  if (type === "single" && ids.length > 2) {
-    console.log("Invalid number of users for single conversation:", ids.length);
-    return res.json({ message: "Invalid number of users" });
+  // Validate request body using Zod schema
+  const validationResult = CreateConversationSchema.safeParse({
+    ids,
+    type,
+    name,
+  });
+
+  if (!validationResult.success) {
+    console.log("Validation error:", validationResult.error.errors);
+    return res.status(400).json({
+      message: "Validation failed",
+      errors: validationResult.error.errors,
+    });
   }
 
-  if (type === "single") {
+  const validatedData = validationResult.data;
+  const {
+    ids: validatedIds,
+    type: validatedType,
+    name: validatedName,
+  } = validatedData;
+
+  if (validatedType === "one_to_one") {
     const existingConversation = await prisma.conversation.findFirst({
       where: {
-        type: type.toUpperCase(),
+        type: validatedType.toUpperCase(),
         users: {
           every: {
             clerkId: {
-              in: ids,
+              in: validatedIds,
             },
           },
         },
@@ -110,15 +119,15 @@ export const createConversation = async (req, res) => {
       });
     }
 
-    console.log("Creating new single conversation...");
-    // Create new single conversation if none exists
+    console.log("Creating new one-to-one conversation...");
+    // Create new one-to-one conversation if none exists
     const newConversation = await prisma.conversation.create({
       data: {
         users: {
-          connect: ids.map((id) => ({ clerkId: id })),
+          connect: validatedIds.map((id) => ({ clerkId: id })),
         },
-        type: type.toUpperCase(),
-        name: name,
+        type: validatedType.toUpperCase(),
+        name: validatedName,
       },
       include: {
         users: true,
@@ -134,10 +143,10 @@ export const createConversation = async (req, res) => {
     const newConversation = await prisma.conversation.create({
       data: {
         users: {
-          connect: ids.map((id) => ({ clerkId: id })),
+          connect: validatedIds.map((id) => ({ clerkId: id })),
         },
-        type: type.toUpperCase(),
-        name: name,
+        type: validatedType.toUpperCase(),
+        name: validatedName,
       },
       include: {
         users: true,

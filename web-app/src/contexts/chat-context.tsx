@@ -1,17 +1,35 @@
 import { create } from "zustand";
 
-type Message = {
+type Conversation = {
   id: string;
-  content: string;
-  sender: string;
-  timestamp: Date;
+  name: string | null;
+  description: string | null;
+  type: "ONE_TO_ONE" | "GROUP";
+  users: any[]; // You can define a proper User type later
+  messages: any[]; // You can define a proper Message type later
+  notifications: any[]; // You can define a proper Notification type later
+  lastMessageId: string | null;
+  lastMessage: any | null; // You can define a proper Message type later
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 type ChatStore = {
-  messages: Message[];
-  setMessages: (messages: Message[]) => void;
+  conversations: Conversation[];
+  selectedConversation: Conversation | null;
+  isLoadingConversations: boolean;
+  setConversations: (conversations: Conversation[]) => void;
+  setSelectedConversation: (conversation: Conversation | null) => void;
+  setIsLoadingConversations: (loading: boolean) => void;
 };
+
 export const useChatStore = create<ChatStore>((set) => ({
-  messages: [],
-  setMessages: (messages) => set({ messages }),
+  conversations: [],
+  selectedConversation: null,
+  isLoadingConversations: false,
+  setConversations: (conversations) => set({ conversations }),
+  setSelectedConversation: (conversation) =>
+    set({ selectedConversation: conversation }),
+  setIsLoadingConversations: (loading) =>
+    set({ isLoadingConversations: loading }),
 }));
