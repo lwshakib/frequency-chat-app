@@ -1,3 +1,4 @@
+import { requireAuth } from "@clerk/express";
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
@@ -8,6 +9,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { authMiddleware } from "./middlewares/auth.middlewares.js";
 import router from "./routes/index.js";
+import SocketService from "./services/socket.js";
 
 dotenv.config();
 const port = process.env.PORT || 8000;
@@ -62,6 +64,11 @@ app.use(
 );
 
 const httpServer = http.createServer(app);
+const socketService = new SocketService();
+
+socketService.io.attach(httpServer);
+socketService.initListeners();
+
 
 
 router.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
