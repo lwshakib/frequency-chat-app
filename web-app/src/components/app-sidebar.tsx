@@ -11,10 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-<<<<<<< HEAD
 import { Label } from "@/components/ui/label";
-=======
->>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
 import {
   Sidebar,
   SidebarContent,
@@ -24,11 +21,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-<<<<<<< HEAD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-=======
->>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
 import { useTheme } from "@/hooks/use-theme";
+import { SignOutButton } from "@clerk/clerk-react";
 import { Bell, LogOut, Moon, Sun, UserPlus, Users } from "lucide-react";
 import { Link } from "react-router";
 
@@ -133,7 +128,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </DialogContent>
             </Dialog>
           </div>
-<<<<<<< HEAD
           <Dialog>
             <DialogTrigger asChild>
               <Button className="w-full justify-start">
@@ -201,12 +195,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               </Tabs>
             </DialogContent>
           </Dialog>
-=======
-          <Button className="w-full justify-start">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Create Contact
-          </Button>
->>>>>>> d29825ee10734e3d77c773c77b8691aab506afda
           <Input placeholder="Search contacts..." className="w-full" />
 
           {/* Groups and Contacts */}
@@ -221,68 +209,103 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               {/* Groups */}
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">WT</span>
                 </div>
-                <span className="text-sm">Work Team</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">Work Team</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Sarah: "Let's discuss the project timeline"
+                  </div>
+                </div>
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-pink-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">F</span>
                 </div>
-                <span className="text-sm">Family</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">Family</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Mom: "Don't forget dinner on Sunday!"
+                  </div>
+                </div>
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-teal-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">F</span>
                 </div>
-                <span className="text-sm">Friends</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">Friends</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Alex: "Movie night this Friday?"
+                  </div>
+                </div>
               </Button>
 
               {/* Contacts */}
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">JD</span>
                 </div>
-                <span className="text-sm">John Doe</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">John Doe</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Hey! How are you doing today?
+                  </div>
+                </div>
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">SW</span>
                 </div>
-                <span className="text-sm">Sarah Wilson</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">Sarah Wilson</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Can we schedule a meeting for tomorrow?
+                  </div>
+                </div>
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">MJ</span>
                 </div>
-                <span className="text-sm">Mike Johnson</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">Mike Johnson</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    Thanks for the quick response!
+                  </div>
+                </div>
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start h-8 cursor-pointer"
+                className="w-full justify-start h-auto cursor-pointer p-2"
               >
-                <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center mr-2">
+                <div className="w-6 h-6 rounded-full bg-purple-500 flex items-center justify-center mr-2 flex-shrink-0">
                   <span className="text-xs text-white font-medium">AL</span>
                 </div>
-                <span className="text-sm">Alice Lee</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-sm font-medium">Alice Lee</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                    See you at the conference next week!
+                  </div>
+                </div>
               </Button>
             </div>
           </div>
@@ -302,9 +325,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </p>
               </div>
             </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <SignOutButton>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </SignOutButton>
           </div>
         </div>
       </SidebarFooter>
