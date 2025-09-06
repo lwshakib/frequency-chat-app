@@ -1,10 +1,8 @@
 import express from "express";
+import { getCloudinaryAuth } from "../controllers/cloudinary.controllers.js";
 
 const router = express.Router();
 
-// Placeholder routes for cloudinary
-router.get("/", (req, res) => {
-  res.json({ message: "Cloudinary routes" });
-});
+router.get("/", getCloudinaryAuth);
 
 export default router;

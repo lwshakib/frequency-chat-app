@@ -1,10 +1,14 @@
 import express from "express";
+import {
+  createNotification,
+  getNotifications,
+  updateNotifications,
+} from "../controllers/notifications.controllers.js";
 
-const router = express.Router();
+const notificationsRouter = express.Router();
 
-// Placeholder routes for notifications
-router.get("/", (req, res) => {
-  res.json({ message: "Notifications routes" });
-});
+notificationsRouter.post("/", createNotification);
+notificationsRouter.get("/", getNotifications);
+notificationsRouter.put("/", updateNotifications);
 
-export default router;
+export default notificationsRouter;

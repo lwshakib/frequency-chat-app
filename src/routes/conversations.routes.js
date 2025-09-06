@@ -1,10 +1,14 @@
 import express from "express";
+import {
+  createConversation,
+  deleteConversation,
+  getConversations,
+} from "../controllers/conversations.controllers.js";
 
-const router = express.Router();
+const conversationsRouter = express.Router();
 
-// Placeholder routes for conversations
-router.get("/", (req, res) => {
-  res.json({ message: "Conversations routes" });
-});
+conversationsRouter.get("/", getConversations);
+conversationsRouter.post("/", createConversation);
+conversationsRouter.delete("/:id", deleteConversation);
 
-export default router;
+export default conversationsRouter;

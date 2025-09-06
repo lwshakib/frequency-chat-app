@@ -1,10 +1,8 @@
 import express from "express";
+import { getUsers } from "../controllers/users.controllers.js";
 
-const router = express.Router();
+const usersRouter = express.Router();
 
-// Placeholder routes for users
-router.get("/", (req, res) => {
-  res.json({ message: "Users routes" });
-});
+usersRouter.get("/", getUsers);
 
-export default router;
+export default usersRouter;

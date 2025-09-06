@@ -1,10 +1,14 @@
 import express from "express";
+import {
+  createMessage,
+  getMessages,
+  updateMessages,
+} from "../controllers/messages.controllers.js";
 
-const router = express.Router();
+const messagesRouter = express.Router();
 
-// Simple route that returns the requested message
-router.get("/", (req, res) => {
-  res.json({ message: "Hello I am from this route" });
-});
+messagesRouter.post("/:conversationId", createMessage);
+messagesRouter.get("/:conversationId", getMessages);
+messagesRouter.put("/", updateMessages);
 
-export default router;
+export default messagesRouter;
