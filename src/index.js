@@ -6,7 +6,8 @@ import http from "http";
 import morgan from "morgan";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
-
+import { authMiddleware } from "./middlewares/auth.middlewares.js";
+import router from "./routes/index.js";
 
 dotenv.config();
 const port = process.env.PORT || 8000;
@@ -63,7 +64,10 @@ app.use(
 const httpServer = http.createServer(app);
 
 
+router.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
+
+app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
 
 
