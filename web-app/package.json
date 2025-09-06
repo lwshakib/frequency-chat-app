@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.46.1",
+    "@clerk/themes": "^2.4.17",
     "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -52,6 +53,7 @@
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.62.0",
     "react-resizable-panels": "^3.0.5",
+    "react-router": "^7.8.2",
     "recharts": "^2.15.4",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
