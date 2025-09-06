@@ -18,7 +18,11 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "@/contexts/chat-context";
+import { createMessage, getMessages } from "@/lib/api";
+import { useUser } from "@clerk/clerk-react";
+import { formatDistanceToNow } from "date-fns";
 import {
   Camera,
   File,
@@ -32,9 +36,21 @@ import {
   Users,
   Video,
 } from "lucide-react";
+import * as React from "react";
 
 export default function ChatPage() {
-  const { selectedConversation } = useChatStore();
+  const {
+    selectedConversation,
+    messages,
+    setMessages,
+    isLoadingMessages,
+    setIsLoadingMessages,
+  } = useChatStore();
+  const { user } = useUser();
+
+  // Message input state
+  const [messageInput, setMessageInput] = React.useState("");
+  const [isSendingMessage, setIsSendingMessage] = React.useState(false);
 
   // Helper functions
   const getDisplayName = () => {
@@ -89,6 +105,144 @@ export default function ChatPage() {
     const colorIndex = id.charCodeAt(0) % colors.length;
     return colors[colorIndex];
   };
+
+  // Fetch messages when conversation changes
+  React.useEffect(() => {
+    const fetchMessages = async () => {
+      if (!selectedConversation || !user) return;
+
+      setIsLoadingMessages(true);
+      try {
+        const data = await getMessages(selectedConversation.id);
+        setMessages(data.messages);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+        setMessages([]);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedConversation, user, setMessages, setIsLoadingMessages]);
+
+  // Format message time
+  const formatMessageTime = (date: Date) => {
+    return formatDistanceToNow(new Date(date), { addSuffix: true });
+  };
+
+  // Check if message is from current user
+  const isCurrentUser = (senderId: string) => {
+    return user?.id === senderId;
+  };
+
+  // Send message function
+  const sendMessage = async () => {
+    if (
+      !messageInput.trim() ||
+      !selectedConversation ||
+      !user ||
+      isSendingMessage
+    )
+      return;
+
+    const messageContent = messageInput.trim();
+    const tempId = `temp-${Date.now()}`;
+
+    // Create optimistic message immediately
+    const optimisticMessage = {
+      id: tempId,
+      content: messageContent,
+      type: "text",
+      files: [],
+      conversationId: selectedConversation.id,
+      senderId: user.id,
+      isRead: "false",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sender: {
+        id: user.id,
+        clerkId: user.id,
+        name: user.fullName || user.firstName || "You",
+        email: user.primaryEmailAddress?.emailAddress || "",
+      },
+    };
+
+    // Add optimistic message immediately
+    setMessages([...messages, optimisticMessage]);
+
+    // Clear input immediately
+    setMessageInput("");
+
+    setIsSendingMessage(true);
+    try {
+      const messageData = {
+        conversationId: selectedConversation.id,
+        content: messageContent,
+        type: "text",
+      };
+
+      const response = await createMessage(messageData);
+
+      // Replace optimistic message with real message from server
+      setMessages((prevMessages) =>
+        prevMessages.map((msg) => (msg.id === tempId ? response.data : msg))
+      );
+    } catch (error) {
+      console.error("Error sending message:", error);
+
+      // Remove optimistic message on error
+      setMessages((prevMessages) =>
+        prevMessages.filter((msg) => msg.id !== tempId)
+      );
+
+      // Restore input content
+      setMessageInput(messageContent);
+    } finally {
+      setIsSendingMessage(false);
+    }
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
+  // Message skeleton component
+  const MessageSkeleton = () => (
+    <div className="space-y-4">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <div
+          key={index}
+          className={`flex ${
+            index % 3 === 0 ? "justify-end" : "justify-start"
+          }`}
+        >
+          <div
+            className={`flex max-w-[70%] ${
+              index % 3 === 0 ? "flex-row-reverse" : "flex-row"
+            } items-end space-x-2`}
+          >
+            {/* Avatar skeleton */}
+            <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
+
+            {/* Message bubble skeleton */}
+            <div className="space-y-2">
+              <Skeleton
+                className={`h-12 ${
+                  index % 3 === 0 ? "w-32" : "w-40"
+                } rounded-2xl`}
+              />
+              <Skeleton className="h-3 w-12" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <SidebarProvider
@@ -168,24 +322,84 @@ export default function ChatPage() {
         {/* Chat Messages Area */}
         <div className="flex-1 p-4 overflow-y-auto">
           {selectedConversation ? (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center">
-                <div
-                  className={`w-16 h-16 rounded-full ${getAvatarColor(
-                    selectedConversation.id
-                  )} flex items-center justify-center mx-auto mb-4`}
-                >
-                  <span className="text-2xl text-white font-medium">
-                    {getInitials(getDisplayName())}
-                  </span>
+            isLoadingMessages ? (
+              <MessageSkeleton />
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="text-center">
+                  <div
+                    className={`w-16 h-16 rounded-full ${getAvatarColor(
+                      selectedConversation.id
+                    )} flex items-center justify-center mx-auto mb-4`}
+                  >
+                    <span className="text-2xl text-white font-medium">
+                      {getInitials(getDisplayName())}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">
+                    {getDisplayName()}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    {getDisplayDescription()}
+                  </p>
+                  <p className="text-sm">Start typing to send a message...</p>
                 </div>
-                <h3 className="text-lg font-medium mb-2">{getDisplayName()}</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {getDisplayDescription()}
-                </p>
-                <p className="text-sm">Start typing to send a message...</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${
+                      isCurrentUser(message.senderId)
+                        ? "justify-end"
+                        : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`flex max-w-[70%] ${
+                        isCurrentUser(message.senderId)
+                          ? "flex-row-reverse"
+                          : "flex-row"
+                      } items-end space-x-2`}
+                    >
+                      {/* Avatar */}
+                      <div
+                        className={`w-8 h-8 rounded-full ${getAvatarColor(
+                          message.senderId
+                        )} flex items-center justify-center flex-shrink-0`}
+                      >
+                        <span className="text-xs text-white font-medium">
+                          {getInitials(
+                            message.sender.name || message.sender.email
+                          )}
+                        </span>
+                      </div>
+
+                      {/* Message bubble */}
+                      <div
+                        className={`px-4 py-2 rounded-2xl ${
+                          isCurrentUser(message.senderId)
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted"
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            isCurrentUser(message.senderId)
+                              ? "text-primary-foreground/70"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {formatMessageTime(message.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
               <div className="text-center max-w-md">
@@ -286,7 +500,14 @@ export default function ChatPage() {
               </DropdownMenu>
 
               <div className="flex-1 relative">
-                <Input placeholder="Type a message..." className="pr-20" />
+                <Input
+                  placeholder="Type a message..."
+                  className="pr-20"
+                  value={messageInput}
+                  onChange={(e) => setMessageInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  disabled={isSendingMessage}
+                />
 
                 {/* Emoji Picker */}
                 <Popover>
@@ -295,6 +516,7 @@ export default function ChatPage() {
                       variant="ghost"
                       size="icon"
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
+                      disabled={isSendingMessage}
                     >
                       <Smile className="h-4 w-4" />
                     </Button>
@@ -335,8 +557,7 @@ export default function ChatPage() {
                             size="sm"
                             className="h-8 w-8 p-0 text-lg hover:bg-muted"
                             onClick={() => {
-                              // Add emoji to input
-                              console.log("Emoji clicked:", emoji);
+                              setMessageInput((prev) => prev + emoji);
                             }}
                           >
                             {emoji}
@@ -348,11 +569,25 @@ export default function ChatPage() {
                 </Popover>
               </div>
 
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                disabled={isSendingMessage}
+              >
                 <Mic className="h-4 w-4" />
               </Button>
-              <Button size="icon" className="h-8 w-8">
-                <Send className="h-4 w-4" />
+              <Button
+                size="icon"
+                className="h-8 w-8"
+                onClick={sendMessage}
+                disabled={!messageInput.trim() || isSendingMessage}
+              >
+                {isSendingMessage ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>

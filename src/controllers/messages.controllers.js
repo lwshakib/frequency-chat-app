@@ -23,6 +23,9 @@ export const createMessage = async (req, res) => {
       conversationId,
       senderId: userId,
     },
+    include:{
+      sender: true
+    }
   });
 
   await prisma.conversation.update({
@@ -30,7 +33,7 @@ export const createMessage = async (req, res) => {
       id: conversationId,
     },
     data: {
-      lastMessage: content || (audio ? "Voice message" : ""),
+      lastMessageId: newMessage.id
     },
   });
 

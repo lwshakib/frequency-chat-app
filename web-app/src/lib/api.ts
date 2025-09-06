@@ -25,3 +25,27 @@ export const createGroup = async (groupData: {
   });
   return data;
 };
+
+export const getMessages = async (conversationId: string) => {
+  const { data } = await axios.get(`/api/messages/${conversationId}`);
+  return data;
+};
+
+export const createMessage = async (messageData: {
+  conversationId: string;
+  content: string;
+  type: string;
+  files?: any[];
+  audio?: any;
+}) => {
+  const { data } = await axios.post(
+    `/api/messages/${messageData.conversationId}`,
+    {
+      content: messageData.content,
+      type: messageData.type,
+      files: messageData.files,
+      audio: messageData.audio,
+    }
+  );
+  return data;
+};
