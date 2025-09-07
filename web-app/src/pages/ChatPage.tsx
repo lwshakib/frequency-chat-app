@@ -12,6 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
@@ -20,7 +21,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "@/contexts/chat-context";
-import { createMessage, getMessages } from "@/lib/api";
+import { useSocket } from "@/hooks/useSocket";
+import { getMessages } from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -49,10 +51,28 @@ export default function ChatPage() {
     setIsLoadingMessages,
   } = useChatStore();
   const { user } = useUser();
+  const { sendMessage: sendMessageSocket } = useSocket();
 
   // Message input state
   const [messageInput, setMessageInput] = React.useState("");
-  const [isSendingMessage, setIsSendingMessage] = React.useState(false);
+
+  // Ref for scroll area
+  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom function
+  const scrollToBottom = () => {
+    if (scrollAreaRef.current) {
+      const scrollElement = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
+      if (scrollElement) {
+        scrollElement.scrollTo({
+          top: scrollElement.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    }
+  };
 
   // Helper functions
   const getDisplayName = () => {
@@ -128,6 +148,16 @@ export default function ChatPage() {
     fetchMessages();
   }, [selectedConversation, user, setMessages, setIsLoadingMessages]);
 
+  // Scroll to bottom when messages change
+  React.useEffect(() => {
+    if (messages.length > 0 && !isLoadingMessages) {
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        scrollToBottom();
+      }, 100);
+    }
+  }, [messages, isLoadingMessages]);
+
   // Format message time
   const formatMessageTime = (date: Date) => {
     return formatDistanceToNow(new Date(date), { addSuffix: true });
@@ -139,14 +169,8 @@ export default function ChatPage() {
   };
 
   // Send message function
-  const sendMessage = async () => {
-    if (
-      !messageInput.trim() ||
-      !selectedConversation ||
-      !user ||
-      isSendingMessage
-    )
-      return;
+  const sendMessage = () => {
+    if (!messageInput.trim() || !selectedConversation || !user) return;
 
     const messageContent = messageInput.trim();
     const tempId = `temp-${Date.now()}`;
@@ -173,41 +197,10 @@ export default function ChatPage() {
       },
     };
 
-    // Add optimistic message immediately
-    setMessages([...messages, optimisticMessage]);
+    sendMessageSocket(optimisticMessage);
 
     // Clear input immediately
     setMessageInput("");
-
-    setIsSendingMessage(true);
-    try {
-      const messageData = {
-        conversationId: selectedConversation.id,
-        content: messageContent,
-        type: "text",
-      };
-
-      const response = await createMessage(messageData);
-
-      // Replace optimistic message with real message from server
-      const updatedMessages = messages.map((msg: Message) =>
-        msg.id === tempId ? response.data : msg
-      );
-      setMessages(updatedMessages);
-    } catch (error) {
-      console.error("Error sending message:", error);
-
-      // Remove optimistic message on error
-      const filteredMessages = messages.filter(
-        (msg: Message) => msg.id !== tempId
-      );
-      setMessages(filteredMessages);
-
-      // Restore input content
-      setMessageInput(messageContent);
-    } finally {
-      setIsSendingMessage(false);
-    }
   };
 
   // Handle Enter key press
@@ -259,11 +252,12 @@ export default function ChatPage() {
           "--header-height": "calc(var(--spacing) * 16)",
         } as React.CSSProperties
       }
+      className="h-screen"
     >
       <AppSidebar variant="inset" />
-      <SidebarInset>
+      <SidebarInset className="flex flex-col">
         {selectedConversation && (
-          <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
+          <header className="flex h-16 shrink-0 items-center gap-2 border-b">
             <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
               <SidebarTrigger className="-ml-1" />
               <Separator
@@ -321,167 +315,174 @@ export default function ChatPage() {
         )}
 
         {!selectedConversation && (
-          <div className="flex h-(--header-height) shrink-0 items-center px-4 lg:px-6">
+          <div className="flex h-16 shrink-0 items-center px-4 lg:px-6">
             <SidebarTrigger className="-ml-1" />
           </div>
         )}
 
-        {/* Chat Messages Area */}
-        <div className="flex-1 p-4 overflow-y-auto">
-          {selectedConversation ? (
-            isLoadingMessages ? (
-              <MessageSkeleton />
-            ) : messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <div className="text-center">
-                  <div
-                    className={`w-16 h-16 rounded-full ${getAvatarColor(
-                      selectedConversation.id
-                    )} flex items-center justify-center mx-auto mb-4`}
-                  >
-                    <span className="text-2xl text-white font-medium">
-                      {getInitials(getDisplayName())}
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-medium mb-2">
-                    {getDisplayName()}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {getDisplayDescription()}
-                  </p>
-                  <p className="text-sm">Start typing to send a message...</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${
-                      isCurrentUser(message.senderId)
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`flex max-w-[70%] ${
-                        isCurrentUser(message.senderId)
-                          ? "flex-row-reverse"
-                          : "flex-row"
-                      } items-end space-x-2`}
-                    >
-                      {/* Avatar */}
+        {/* Chat Messages Area - Takes remaining space */}
+        <div className="flex-1 min-h-0">
+          <ScrollArea ref={scrollAreaRef} className="h-full">
+            <div className="p-4">
+              {selectedConversation ? (
+                isLoadingMessages ? (
+                  <MessageSkeleton />
+                ) : messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <div className="text-center">
                       <div
-                        className={`w-8 h-8 rounded-full ${getAvatarColor(
-                          message.senderId
-                        )} flex items-center justify-center flex-shrink-0`}
+                        className={`w-16 h-16 rounded-full ${getAvatarColor(
+                          selectedConversation.id
+                        )} flex items-center justify-center mx-auto mb-4`}
                       >
-                        <span className="text-xs text-white font-medium">
-                          {getInitials(
-                            message.sender.name || message.sender.email
-                          )}
+                        <span className="text-2xl text-white font-medium">
+                          {getInitials(getDisplayName())}
                         </span>
                       </div>
-
-                      {/* Message bubble */}
+                      <h3 className="text-lg font-medium mb-2">
+                        {getDisplayName()}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {getDisplayDescription()}
+                      </p>
+                      <p className="text-sm">
+                        Start typing to send a message...
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {messages.map((message) => (
                       <div
-                        className={`px-4 py-2 rounded-2xl ${
+                        key={message.id}
+                        className={`flex ${
                           isCurrentUser(message.senderId)
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p
-                          className={`text-xs mt-1 ${
+                        <div
+                          className={`flex max-w-[70%] ${
                             isCurrentUser(message.senderId)
-                              ? "text-primary-foreground/70"
-                              : "text-muted-foreground"
-                          }`}
+                              ? "flex-row-reverse"
+                              : "flex-row"
+                          } items-end space-x-2`}
                         >
-                          {formatMessageTime(message.createdAt)}
-                        </p>
+                          {/* Avatar */}
+                          <div
+                            className={`w-8 h-8 rounded-full ${getAvatarColor(
+                              message.senderId
+                            )} flex items-center justify-center flex-shrink-0`}
+                          >
+                            <span className="text-xs text-white font-medium">
+                              {getInitials(
+                                message.sender.name || message.sender.email
+                              )}
+                            </span>
+                          </div>
+
+                          {/* Message bubble */}
+                          <div
+                            className={`px-4 py-2 rounded-2xl ${
+                              isCurrentUser(message.senderId)
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-muted"
+                            }`}
+                          >
+                            <p className="text-sm">{message.content}</p>
+                            <p
+                              className={`text-xs mt-1 ${
+                                isCurrentUser(message.senderId)
+                                  ? "text-primary-foreground/70"
+                                  : "text-muted-foreground"
+                              }`}
+                            >
+                              {formatMessageTime(message.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center max-w-md">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-white">F</span>
+                    </div>
+                    <h3 className="text-2xl font-bold mb-4 text-foreground">
+                      Welcome to Frequency
+                    </h3>
+                    <p className="text-base mb-6 text-muted-foreground">
+                      Your modern, real-time chat application for seamless
+                      communication
+                    </p>
+
+                    <div className="space-y-4 text-left">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground mb-1">
+                            Create Groups
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            Start group conversations with multiple people and
+                            collaborate effectively
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Phone className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground mb-1">
+                            Real-time Messaging
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            Send instant messages with real-time updates and
+                            notifications
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0 mt-1">
+                          <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground mb-1">
+                            Rich Media
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            Share photos, files, and emojis to express yourself
+                            better
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )
-          ) : (
-            <div className="flex items-center justify-center h-full text-muted-foreground">
-              <div className="text-center max-w-md">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                  <span className="text-3xl font-bold text-white">F</span>
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-foreground">
-                  Welcome to Frequency
-                </h3>
-                <p className="text-base mb-6 text-muted-foreground">
-                  Your modern, real-time chat application for seamless
-                  communication
-                </p>
 
-                <div className="space-y-4 text-left">
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-foreground mb-1">
-                        Create Groups
-                      </h4>
+                    <div className="mt-8 p-4 bg-muted/50 rounded-lg">
                       <p className="text-sm text-muted-foreground">
-                        Start group conversations with multiple people and
-                        collaborate effectively
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Phone className="h-4 w-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-foreground mb-1">
-                        Real-time Messaging
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Send instant messages with real-time updates and
-                        notifications
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-3">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-foreground mb-1">
-                        Rich Media
-                      </h4>
-                      <p className="text-sm text-muted-foreground">
-                        Share photos, files, and emojis to express yourself
-                        better
+                        <strong>Getting Started:</strong> Select a conversation
+                        from the sidebar or create a new group to start
+                        chatting!
                       </p>
                     </div>
                   </div>
                 </div>
-
-                <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Getting Started:</strong> Select a conversation from
-                    the sidebar or create a new group to start chatting!
-                  </p>
-                </div>
-              </div>
+              )}
             </div>
-          )}
+          </ScrollArea>
         </div>
 
         {/* Chat Input Area - Only show when conversation is selected */}
         {selectedConversation && (
-          <div className="border-t p-4">
+          <div className="border-t p-4 shrink-0">
             <div className="flex items-center gap-2">
               {/* Media Upload Button */}
               <DropdownMenu>
@@ -513,7 +514,6 @@ export default function ChatPage() {
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  disabled={isSendingMessage}
                 />
 
                 {/* Emoji Picker */}
@@ -523,7 +523,6 @@ export default function ChatPage() {
                       variant="ghost"
                       size="icon"
                       className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
-                      disabled={isSendingMessage}
                     >
                       <Smile className="h-4 w-4" />
                     </Button>
@@ -576,25 +575,16 @@ export default function ChatPage() {
                 </Popover>
               </div>
 
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                disabled={isSendingMessage}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 <Mic className="h-4 w-4" />
               </Button>
               <Button
                 size="icon"
                 className="h-8 w-8"
                 onClick={sendMessage}
-                disabled={!messageInput.trim() || isSendingMessage}
+                disabled={!messageInput.trim()}
               >
-                {isSendingMessage ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
+                <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>

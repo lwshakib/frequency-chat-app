@@ -7,7 +7,7 @@ import { SocketContext, type SocketContextType } from "./socket-context";
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<SocketContextType["socket"]>();
-  const { selectedConversation } = useChatStore();
+  const { selectedConversation, setMessages } = useChatStore();
   const { user } = useUser();
 
   const sendMessage = useCallback(
@@ -20,9 +20,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket, selectedConversation]
   );
 
-  const onMessageRec = useCallback((msg: Message) => {
-    console.log(msg);
-  }, []);
+  const onMessageRec = useCallback(
+    (msg: Message) => {
+      console.log(msg);
+      setMessages((prev) => [...prev, msg]);
+    },
+    [setMessages]
+  );
 
   useEffect(() => {
     const _socket = io(import.meta.env.VITE_API_URL);
