@@ -1,16 +1,43 @@
-import type React from "react";
-import { useEffect, useState } from "react";
+import { useUser } from "@clerk/clerk-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { io } from "socket.io-client";
+import type { Message } from "../types";
+import { useChatStore } from "./chat-context";
+import { SocketContext, type SocketContextType } from "./socket-context";
 
-export const SocketContext = React.createContext(null)
+export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
+  const [socket, setSocket] = useState<SocketContextType["socket"]>();
+  const { selectedConversation } = useChatStore();
+  const { user } = useUser();
 
-export const SocketProvider = ({children}: {children: React.ReactNode})=>{
-    const [socket, setSocket] = useState();
+  const sendMessage = useCallback(
+    (message: Message) => {
+      socket?.emit("event:message", {
+        message,
+        conversation: selectedConversation,
+      });
+    },
+    [socket, selectedConversation]
+  );
 
-    useEffect(()=>{
-        
-    })
-    return(
-    <SocketContext.Provider value={{socket}}>
-        {children}
-    </SocketContext.Provider>)
-}
+  const onMessageRec = useCallback((msg: Message) => {
+    console.log(msg);
+  }, []);
+
+  useEffect(() => {
+    const _socket = io(import.meta.env.VITE_API_URL);
+    setSocket(_socket);
+
+    _socket.emit("join:server", user?.id);
+    _socket.on("message", onMessageRec);
+
+    return () => {
+      _socket.disconnect();
+    };
+  }, [user?.id, onMessageRec]);
+  return (
+    <SocketContext.Provider value={{ socket, sendMessage }}>
+      {children}
+    </SocketContext.Provider>
+  );
+};

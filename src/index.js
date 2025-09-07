@@ -70,14 +70,8 @@ socketService.io.attach(httpServer);
 socketService.initListeners();
 
 
-
-router.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
-
-
 app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
-
-
 httpServer.listen(port, () => {
-    console.log(`Server is running on port http://localhost:${port}`);
-  });
+  console.log(`Server is running on port http://localhost:${port}`);
+});

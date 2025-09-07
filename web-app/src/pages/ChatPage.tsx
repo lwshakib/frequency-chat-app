@@ -37,6 +37,8 @@ import {
   Video,
 } from "lucide-react";
 import * as React from "react";
+import type { Message } from "../types";
+import { MESSAGE_READ_STATUS } from "../types";
 
 export default function ChatPage() {
   const {
@@ -61,7 +63,7 @@ export default function ChatPage() {
       selectedConversation.users.length > 0
     ) {
       const otherUser = selectedConversation.users.find(
-        (user) => user.clerkId !== "current-user-id"
+        (u) => u.clerkId !== "current-user-id"
       );
       return otherUser?.name || otherUser?.email || "Unknown";
     }
@@ -150,14 +152,14 @@ export default function ChatPage() {
     const tempId = `temp-${Date.now()}`;
 
     // Create optimistic message immediately
-    const optimisticMessage = {
+    const optimisticMessage: Message = {
       id: tempId,
       content: messageContent,
       type: "text",
       files: [],
       conversationId: selectedConversation.id,
       senderId: user.id,
-      isRead: "false",
+      isRead: MESSAGE_READ_STATUS.UNREAD,
       createdAt: new Date(),
       updatedAt: new Date(),
       sender: {
@@ -165,6 +167,9 @@ export default function ChatPage() {
         clerkId: user.id,
         name: user.fullName || user.firstName || "You",
         email: user.primaryEmailAddress?.emailAddress || "",
+        imageUrl: user.imageUrl,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
     };
 
@@ -185,16 +190,18 @@ export default function ChatPage() {
       const response = await createMessage(messageData);
 
       // Replace optimistic message with real message from server
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) => (msg.id === tempId ? response.data : msg))
+      const updatedMessages = messages.map((msg: Message) =>
+        msg.id === tempId ? response.data : msg
       );
+      setMessages(updatedMessages);
     } catch (error) {
       console.error("Error sending message:", error);
 
       // Remove optimistic message on error
-      setMessages((prevMessages) =>
-        prevMessages.filter((msg) => msg.id !== tempId)
+      const filteredMessages = messages.filter(
+        (msg: Message) => msg.id !== tempId
       );
+      setMessages(filteredMessages);
 
       // Restore input content
       setMessageInput(messageContent);

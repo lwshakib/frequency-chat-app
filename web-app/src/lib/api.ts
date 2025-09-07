@@ -1,22 +1,42 @@
 import axios from "axios";
+import type {
+  CreateGroupRequest,
+  CreateGroupResponse,
+  CreateMessageRequest,
+  CreateMessageResponse,
+  GetConversationByIdResponse,
+  GetConversationsResponse,
+  GetMessagesResponse,
+  GetUsersResponse,
+} from "../types";
 
-export const getConversations = async (clerkId: string) => {
+export const getConversations = async (
+  clerkId: string
+): Promise<GetConversationsResponse> => {
   const { data } = await axios.get(`/api/conversations?userId=${clerkId}`);
   return data;
 };
 
-export const getUsers = async (search?: string) => {
+export const getConversationById = async (
+  conversationId: string,
+  clerkId: string
+): Promise<GetConversationByIdResponse> => {
+  const { data } = await axios.get(
+    `/api/conversations/${conversationId}/${clerkId}`
+  );
+  return data;
+};
+
+export const getUsers = async (search?: string): Promise<GetUsersResponse> => {
   const { data } = await axios.get(
     `/api/users${search ? `?search=${search}` : ""}`
   );
   return data;
 };
 
-export const createGroup = async (groupData: {
-  name: string;
-  description?: string;
-  userIds: string[];
-}) => {
+export const createGroup = async (
+  groupData: CreateGroupRequest
+): Promise<CreateGroupResponse> => {
   const { data } = await axios.post("/api/conversations", {
     type: "group",
     name: groupData.name,
@@ -26,18 +46,16 @@ export const createGroup = async (groupData: {
   return data;
 };
 
-export const getMessages = async (conversationId: string) => {
+export const getMessages = async (
+  conversationId: string
+): Promise<GetMessagesResponse> => {
   const { data } = await axios.get(`/api/messages/${conversationId}`);
   return data;
 };
 
-export const createMessage = async (messageData: {
-  conversationId: string;
-  content: string;
-  type: string;
-  files?: any[];
-  audio?: any;
-}) => {
+export const createMessage = async (
+  messageData: CreateMessageRequest
+): Promise<CreateMessageResponse> => {
   const { data } = await axios.post(
     `/api/messages/${messageData.conversationId}`,
     {

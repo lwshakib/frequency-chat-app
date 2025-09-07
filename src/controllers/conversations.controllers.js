@@ -59,6 +59,7 @@ export const getConversations = async (req, res) => {
   const conversations = await prisma.conversation.findMany({
     where: whereClause,
     include: {
+      lastMessage: true,
       users: true,
     },
     orderBy: {
@@ -66,7 +67,51 @@ export const getConversations = async (req, res) => {
     },
   });
 
-  res.json({ message: "Conversations fetched successfully", conversations });
+  // Transform conversations to include only the other user for one-to-one conversations
+  const transformedConversations = conversations.map((conversation) => {
+    const { createdAt, ...conversationWithoutCreatedAt } = conversation;
+    const transformedConversation = {
+      ...conversationWithoutCreatedAt,
+      lastMessage: conversation.lastMessage
+        ? conversation.lastMessage.content
+        : null,
+    };
+
+    if (conversation.type === "ONE_TO_ONE") {
+      // For one-to-one conversations, include only the other user with clerkId and name
+      const otherUser = conversation.users.find(
+        (user) => user.clerkId !== userId
+      );
+      return {
+        ...transformedConversation,
+        users: otherUser
+          ? [{ clerkId: otherUser.clerkId, name: otherUser.name }]
+          : [],
+      };
+    }
+    // For group conversations, include all users with only clerkId
+    return {
+      ...transformedConversation,
+      users: conversation.users.map((user) => ({ clerkId: user.clerkId })),
+    };
+  });
+
+  res.json({
+    message: "Conversations fetched successfully",
+    conversations: transformedConversations,
+  });
+};
+
+export const getConversationById = async (req, res) => {
+  const { id, userId } = req.params;
+  const conversation = await prisma.conversation.findUnique({
+    where: { id, users: { some: { clerkId: userId } } },
+    include: {
+      users: true,
+      lastMessage: true,
+    },
+  });
+  res.json({ conversation });
 };
 
 export const createConversation = async (req, res) => {
@@ -107,7 +152,7 @@ export const createConversation = async (req, res) => {
         },
       },
       include: {
-        users: true,
+        lastMessage: true,
       },
     });
 
@@ -130,7 +175,7 @@ export const createConversation = async (req, res) => {
         name: validatedName,
       },
       include: {
-        users: true,
+        lastMessage: true,
       },
     });
 
@@ -149,7 +194,7 @@ export const createConversation = async (req, res) => {
         name: validatedName,
       },
       include: {
-        users: true,
+        lastMessage: true,
       },
     });
 

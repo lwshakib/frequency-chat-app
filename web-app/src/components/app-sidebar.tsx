@@ -2,6 +2,18 @@
 
 import * as React from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,7 +37,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
-import { createGroup, getConversations, getUsers } from "@/lib/api";
+import {
+  createGroup,
+  getConversationById,
+  getConversations,
+  getUsers,
+} from "@/lib/api";
 import { SignOutButton, useUser } from "@clerk/clerk-react";
 import {
   Bell,
@@ -38,6 +55,7 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "react-router";
+import type { Conversation, User } from "../types";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -54,9 +72,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Group creation state
   const [groupName, setGroupName] = React.useState("");
   const [groupDescription, setGroupDescription] = React.useState("");
-  const [selectedUsers, setSelectedUsers] = React.useState<any[]>([]);
+  const [selectedUsers, setSelectedUsers] = React.useState<User[]>([]);
   const [userSearch, setUserSearch] = React.useState("");
-  const [availableUsers, setAvailableUsers] = React.useState<any[]>([]);
+  const [availableUsers, setAvailableUsers] = React.useState<User[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
 
@@ -122,7 +140,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   };
 
-  const addUser = (userToAdd: any) => {
+  const addUser = (userToAdd: User) => {
     if (!selectedUsers.find((u) => u.clerkId === userToAdd.clerkId)) {
       setSelectedUsers([...selectedUsers, userToAdd]);
     }
@@ -133,8 +151,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setSelectedUsers(selectedUsers.filter((u) => u.clerkId !== userId));
   };
 
-  const handleConversationClick = (conversation: any) => {
-    setSelectedConversation(conversation);
+  const handleConversationClick = async (conversation: Conversation) => {
+    if (!user) return;
+
+    try {
+      // Fetch full conversation details
+      const data = await getConversationById(conversation.id, user.id);
+      setSelectedConversation(data.conversation);
+    } catch (error) {
+      console.error("Error fetching conversation details:", error);
+      // Fallback to setting the conversation from the list if API call fails
+      setSelectedConversation(conversation);
+    }
   };
 
   // Skeleton component for conversation loading
@@ -183,6 +211,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <Button
               variant="outline"
               size="icon"
+              className="cursor-pointer"
               onClick={() =>
                 setTheme(resolvedTheme === "dark" ? "light" : "dark")
               }
@@ -195,7 +224,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             </Button>
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="cursor-pointer"
+                >
                   <Bell className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
@@ -252,7 +285,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full justify-start">
+              <Button className="w-full justify-start cursor-pointer">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Create Contact
               </Button>
@@ -298,7 +331,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       placeholder="Enter phone number"
                     />
                   </div>
-                  <Button className="w-full">Create Contact</Button>
+                  <Button className="w-full cursor-pointer">
+                    Create Contact
+                  </Button>
                 </TabsContent>
                 <TabsContent value="group" className="space-y-4 mt-4">
                   <div className="space-y-2">
@@ -405,7 +440,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                               variant="ghost"
                               size="sm"
                               onClick={() => removeUser(user.clerkId)}
-                              className="h-6 w-6 p-0"
+                              className="h-6 w-6 p-0 cursor-pointer"
                             >
                               <X className="h-4 w-4" />
                             </Button>
@@ -416,7 +451,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   )}
 
                   <Button
-                    className="w-full"
+                    className="w-full cursor-pointer"
                     onClick={handleCreateGroup}
                     disabled={
                       !groupName.trim() ||
@@ -540,21 +575,60 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <div className="p-4 border-t">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                <span className="text-sm text-white font-medium">U</span>
-              </div>
+              <Avatar className="w-8 h-8">
+                <AvatarImage
+                  src={user?.imageUrl}
+                  alt={user?.fullName || "User"}
+                />
+                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium">
+                  {user?.firstName?.charAt(0)?.toUpperCase() ||
+                    user?.emailAddresses?.[0]?.emailAddress
+                      ?.charAt(0)
+                      ?.toUpperCase() ||
+                    "U"}
+                </AvatarFallback>
+              </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">John Smith</p>
+                <p className="text-sm font-medium truncate">
+                  {user?.fullName || user?.firstName || "User"}
+                </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  john.smith@email.com
+                  {user?.emailAddresses?.[0]?.emailAddress || "No email"}
                 </p>
               </div>
             </div>
-            <SignOutButton>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </SignOutButton>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 cursor-pointer"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    Are you sure you want to sign out?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You will be logged out of your account and will need to sign
+                    in again to access your conversations.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <SignOutButton>
+                      <Button variant="destructive" className="cursor-pointer">
+                        Sign Out
+                      </Button>
+                    </SignOutButton>
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
       </SidebarFooter>
