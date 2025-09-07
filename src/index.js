@@ -9,6 +9,7 @@ import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { authMiddleware } from "./middlewares/auth.middlewares.js";
 import router from "./routes/index.js";
+import { gracefulShutdown, startMessageConsumer } from "./services/kafka.js";
 import SocketService from "./services/socket.js";
 
 dotenv.config();
@@ -66,12 +67,30 @@ app.use(
 const httpServer = http.createServer(app);
 const socketService = new SocketService();
 
+// Start Kafka consumer with error handling
+startMessageConsumer().catch((error) => {
+  console.error("Failed to start Kafka consumer:", error);
+  console.log("Application will continue without Kafka consumer");
+});
+
 socketService.io.attach(httpServer);
 socketService.initListeners();
-
 
 app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
 httpServer.listen(port, () => {
   console.log(`Server is running on port http://localhost:${port}`);
+});
+
+// Graceful shutdown handling
+process.on("SIGINT", async () => {
+  console.log("\nReceived SIGINT. Gracefully shutting down...");
+  await gracefulShutdown();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  console.log("\nReceived SIGTERM. Gracefully shutting down...");
+  await gracefulShutdown();
+  process.exit(0);
 });
