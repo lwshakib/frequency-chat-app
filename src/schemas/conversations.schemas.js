@@ -12,6 +12,11 @@ export const CreateConversationSchema = z
       .string()
       .max(100, "Name must be less than 100 characters")
       .optional(),
+    description: z
+      .string()
+      .max(500, "Description must be less than 500 characters")
+      .optional(),
+    adminId: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -42,5 +47,21 @@ export const CreateConversationSchema = z
       message:
         "One-to-one conversations must have exactly 2 user IDs, group conversations must have at least 1",
       path: ["ids"],
+    }
+  )
+  .refine(
+    (data) => {
+      // AdminId is required for group conversations
+      if (
+        data.type === "group" &&
+        (!data.adminId || data.adminId.trim() === "")
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "AdminId is required for group conversations",
+      path: ["adminId"],
     }
   );

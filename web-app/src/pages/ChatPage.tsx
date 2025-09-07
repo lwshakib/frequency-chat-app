@@ -1,6 +1,12 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -20,9 +26,10 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useSocket } from "@/hooks/useSocket";
-import { getMessages } from "@/lib/api";
+import { getMessages, getUsers, updateGroup } from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -33,6 +40,7 @@ import {
   MoreVertical,
   Paperclip,
   Phone,
+  Search,
   Send,
   Smile,
   Users,
@@ -55,6 +63,28 @@ export default function ChatPage() {
 
   // Message input state
   const [messageInput, setMessageInput] = React.useState("");
+
+  // Dialog state
+  const [isMembersDialogOpen, setIsMembersDialogOpen] = React.useState(false);
+  const [memberSearchTerm, setMemberSearchTerm] = React.useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
+  const [editName, setEditName] = React.useState("");
+  const [editDescription, setEditDescription] = React.useState("");
+  const [editAdmins, setEditAdmins] = React.useState<Set<string>>(new Set());
+  const [editMembers, setEditMembers] = React.useState<
+    { clerkId: string; name?: string | null; email?: string }[]
+  >([]);
+  const [editPanel, setEditPanel] = React.useState<
+    "addMember" | "updateAdmins" | "removeUsers"
+  >("addMember");
+  const [addMemberSearch, setAddMemberSearch] = React.useState("");
+  const [availableUsers, setAvailableUsers] = React.useState<
+    { clerkId: string; name: string | null; email: string }[]
+  >([]);
+  const [adminsSearch, setAdminsSearch] = React.useState("");
+  const [removeSearch, setRemoveSearch] = React.useState("");
+  const originalAdminsRef = React.useRef<string[]>([]);
+  const originalMembersRef = React.useRef<string[]>([]);
 
   // Ref for scroll area
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
@@ -161,6 +191,173 @@ export default function ChatPage() {
   // Format message time
   const formatMessageTime = (date: Date) => {
     return formatDistanceToNow(new Date(date), { addSuffix: true });
+  };
+
+  // Helpers for admin checks
+  const currentUserIsAdmin = React.useMemo(() => {
+    if (!selectedConversation) return false;
+    return selectedConversation.admins?.some((a) => a.clerkId === user?.id);
+  }, [selectedConversation, user?.id]);
+
+  // Open Edit dialog and seed state from selected conversation
+  const openEditDialog = () => {
+    if (!selectedConversation) return;
+    setEditName(selectedConversation.name || "");
+    setEditDescription(selectedConversation.description || "");
+    const adminIds = new Set<string>(
+      selectedConversation.admins?.map((a) => a.clerkId) || []
+    );
+    setEditAdmins(adminIds);
+    const members = selectedConversation.users.map((u) => ({
+      clerkId: u.clerkId,
+      name: u.name,
+      email: u.email,
+    }));
+    setEditMembers(members);
+    originalAdminsRef.current = Array.from(adminIds);
+    originalMembersRef.current = members.map((m) => m.clerkId);
+    setEditPanel("addMember");
+    setAddMemberSearch("");
+    setAvailableUsers([]);
+    setAdminsSearch("");
+    setRemoveSearch("");
+    setIsEditDialogOpen(true);
+  };
+
+  const toggleAdmin = (clerkId: string) => {
+    setEditAdmins((prev) => {
+      const copy = new Set(prev);
+      if (copy.has(clerkId)) copy.delete(clerkId);
+      else copy.add(clerkId);
+      return copy;
+    });
+  };
+
+  const removeMember = (clerkId: string) => {
+    setEditMembers((prev) => prev.filter((m) => m.clerkId !== clerkId));
+    setEditAdmins((prev) => {
+      const copy = new Set(prev);
+      copy.delete(clerkId);
+      return copy;
+    });
+  };
+
+  // Fetch users for Add Member panel
+  React.useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!isEditDialogOpen || editPanel !== "addMember") return;
+      try {
+        const res = await getUsers(addMemberSearch);
+        if (cancelled) return;
+        const options = res.users.map((u) => ({
+          clerkId: u.clerkId,
+          name: u.name,
+          email: u.email,
+        }));
+        setAvailableUsers(options);
+      } catch (e) {
+        if (!cancelled) setAvailableUsers([]);
+      }
+    };
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [addMemberSearch, isEditDialogOpen, editPanel, editMembers]);
+
+  const addMemberFromPicker = (user: {
+    clerkId: string;
+    name: string | null;
+    email: string;
+  }) => {
+    if (editMembers.some((m) => m.clerkId === user.clerkId)) return;
+    setEditMembers((prev) => [
+      { clerkId: user.clerkId, name: user.name, email: user.email },
+      ...prev,
+    ]);
+  };
+
+  const saveGroupEdits = async () => {
+    if (!selectedConversation || !user) return;
+    const currentMemberIds = editMembers.map((m) => m.clerkId);
+    const originalMemberIds = new Set(originalMembersRef.current);
+    const originalAdminIds = new Set(originalAdminsRef.current);
+    const newAdminIds = new Set(editAdmins);
+
+    const addMemberIds = currentMemberIds.filter(
+      (id) => !originalMemberIds.has(id)
+    );
+    const removeMemberIds = Array.from(originalMemberIds).filter(
+      (id) => !currentMemberIds.includes(id)
+    );
+    const addAdminIds = Array.from(newAdminIds).filter(
+      (id) => !originalAdminIds.has(id)
+    );
+    const removeAdminIds = Array.from(originalAdminIds).filter(
+      (id) => !newAdminIds.has(id)
+    );
+
+    // Build optimistic conversation
+    const prevConversation = selectedConversation;
+    const adminsOptimistic = Array.from(editAdmins).map((aid) => {
+      const found = editMembers.find((m) => m.clerkId === aid);
+      return { clerkId: aid, name: found?.name ?? null };
+    });
+    const usersOptimistic = editMembers.map((m) => {
+      const existing = prevConversation.users.find(
+        (u) => u.clerkId === m.clerkId
+      );
+      return existing
+        ? {
+            ...existing,
+            name: m.name ?? existing.name,
+            email: m.email ?? existing.email,
+          }
+        : ({
+            // minimal user object compatible with UI usage
+            id: m.clerkId,
+            clerkId: m.clerkId,
+            name: m.name ?? null,
+            email: m.email ?? "",
+            imageUrl: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any);
+    });
+    const optimisticConversation = {
+      ...prevConversation,
+      name: editName,
+      description: editDescription,
+      users: usersOptimistic as any,
+      admins: adminsOptimistic,
+    };
+
+    // Apply optimistic update and close dialog immediately
+    (useChatStore.getState() as any).setSelectedConversation(
+      optimisticConversation
+    );
+    setIsEditDialogOpen(false);
+
+    // Fire-and-forget server update, revert on error
+    try {
+      await updateGroup({
+        conversationId: prevConversation.id,
+        requesterId: user.id,
+        name: editName,
+        description: editDescription,
+        addMemberIds,
+        removeMemberIds,
+        addAdminIds,
+        removeAdminIds,
+      });
+    } catch (e) {
+      console.error("Failed to update group", e);
+      // Revert UI to previous state on failure
+      (useChatStore.getState() as any).setSelectedConversation(
+        prevConversation
+      );
+    }
   };
 
   // Check if message is from current user
@@ -301,9 +498,29 @@ export default function ChatPage() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>View Profile</DropdownMenuItem>
+                    {selectedConversation.type === "GROUP" ? (
+                      <DropdownMenuItem
+                        onClick={() => setIsMembersDialogOpen(true)}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem>
+                        <Users className="h-4 w-4 mr-2" />
+                        View Profile
+                      </DropdownMenuItem>
+                    )}
+                    {selectedConversation.type === "GROUP" &&
+                      currentUserIsAdmin && (
+                        <DropdownMenuItem onClick={openEditDialog}>
+                          Edit Group Details
+                        </DropdownMenuItem>
+                      )}
                     <DropdownMenuItem>Mute Notifications</DropdownMenuItem>
-                    <DropdownMenuItem>Block User</DropdownMenuItem>
+                    {selectedConversation.type === "ONE_TO_ONE" && (
+                      <DropdownMenuItem>Block User</DropdownMenuItem>
+                    )}
                     <DropdownMenuItem className="text-red-600">
                       Delete Chat
                     </DropdownMenuItem>
@@ -590,6 +807,374 @@ export default function ChatPage() {
           </div>
         )}
       </SidebarInset>
+
+      {/* Group Details Dialog */}
+      <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Group Details
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedConversation && (
+              <>
+                {/* Group Info */}
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <h3 className="font-medium text-lg">
+                    {selectedConversation.name}
+                  </h3>
+                  {selectedConversation.description && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {selectedConversation.description}
+                    </p>
+                  )}
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {selectedConversation.users.length} members
+                  </p>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search members..."
+                    value={memberSearchTerm}
+                    onChange={(e) => setMemberSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Members List */}
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {selectedConversation.users
+                    .filter((member) => {
+                      if (!memberSearchTerm) return true;
+                      const searchLower = memberSearchTerm.toLowerCase();
+                      return (
+                        member.name?.toLowerCase().includes(searchLower) ||
+                        member.email.toLowerCase().includes(searchLower)
+                      );
+                    })
+                    .sort((a, b) => {
+                      const aIsAdmin = selectedConversation.admins?.some(
+                        (admin) => admin.clerkId === a.clerkId
+                      );
+                      const bIsAdmin = selectedConversation.admins?.some(
+                        (admin) => admin.clerkId === b.clerkId
+                      );
+
+                      // Admins first, then regular members
+                      if (aIsAdmin && !bIsAdmin) return -1;
+                      if (!aIsAdmin && bIsAdmin) return 1;
+
+                      // Within same role, sort alphabetically by name
+                      const aName = a.name || a.email || "";
+                      const bName = b.name || b.email || "";
+                      return aName.localeCompare(bName);
+                    })
+                    .map((member) => {
+                      const isAdmin = selectedConversation.admins?.some(
+                        (admin) => admin.clerkId === member.clerkId
+                      );
+                      const isCurrentUser = member.clerkId === user?.id;
+
+                      return (
+                        <div
+                          key={member.clerkId}
+                          className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className={`w-10 h-10 rounded-full ${getAvatarColor(
+                                member.clerkId
+                              )} flex items-center justify-center`}
+                            >
+                              <span className="text-sm text-white font-medium">
+                                {getInitials(member.name || member.email)}
+                              </span>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium">
+                                  {member.name || "Unknown"}
+                                  {isCurrentUser && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                      (You)
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {member.email}
+                              </p>
+                            </div>
+                          </div>
+                          {isAdmin && (
+                            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full font-medium">
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                  {/* No results message */}
+                  {selectedConversation.users.filter((member) => {
+                    if (!memberSearchTerm) return true;
+                    const searchLower = memberSearchTerm.toLowerCase();
+                    return (
+                      member.name?.toLowerCase().includes(searchLower) ||
+                      member.email.toLowerCase().includes(searchLower)
+                    );
+                  }).length === 0 &&
+                    memberSearchTerm && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No members found matching "{memberSearchTerm}"</p>
+                      </div>
+                    )}
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Group Details Dialog (Admins only) */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Group Details</DialogTitle>
+          </DialogHeader>
+          {selectedConversation && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Group Name</label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Enter group name"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Description</label>
+                <Input
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  placeholder="Enter description"
+                />
+              </div>
+              <Tabs
+                value={editPanel}
+                onValueChange={(v) => setEditPanel(v as any)}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="addMember">Add Member</TabsTrigger>
+                  <TabsTrigger value="updateAdmins">Update Admins</TabsTrigger>
+                  <TabsTrigger value="removeUsers">Remove Users</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="addMember">
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        className="pl-10"
+                        placeholder="Search users..."
+                        value={addMemberSearch}
+                        onChange={(e) => setAddMemberSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-1 border rounded-md p-1">
+                      {availableUsers.length === 0 ? (
+                        <div className="text-center text-sm text-muted-foreground py-6">
+                          No users
+                        </div>
+                      ) : (
+                        availableUsers.map((u) => {
+                          const isMember = editMembers.some(
+                            (m) => m.clerkId === u.clerkId
+                          );
+                          return (
+                            <div
+                              key={u.clerkId}
+                              className="flex items-center justify-between p-2 rounded hover:bg-muted"
+                            >
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {u.name || u.email}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {u.clerkId}
+                                </div>
+                              </div>
+                              {isMember ? (
+                                <Button size="sm" variant="outline" disabled>
+                                  Added
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  onClick={() => addMemberFromPicker(u)}
+                                >
+                                  Add
+                                </Button>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="updateAdmins">
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        className="pl-10"
+                        placeholder="Search members..."
+                        value={adminsSearch}
+                        onChange={(e) => setAdminsSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {editMembers
+                        .filter((m) => {
+                          if (!adminsSearch) return true;
+                          const s = adminsSearch.toLowerCase();
+                          return (
+                            (m.name || "").toLowerCase().includes(s) ||
+                            (m.email || "").toLowerCase().includes(s) ||
+                            m.clerkId.toLowerCase().includes(s)
+                          );
+                        })
+                        .map((m) => {
+                          const isAdmin = editAdmins.has(m.clerkId);
+                          const isSelf = m.clerkId === user?.id;
+                          const numAdmins = editAdmins.size;
+                          return (
+                            <div
+                              key={m.clerkId}
+                              className="flex items-center justify-between p-2 rounded border"
+                            >
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {m.name || m.email || m.clerkId}{" "}
+                                  {isSelf && (
+                                    <span className="text-xs text-muted-foreground">
+                                      (You)
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {m.clerkId}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant={isAdmin ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => toggleAdmin(m.clerkId)}
+                                  disabled={
+                                    isSelf && isAdmin && numAdmins === 1
+                                  }
+                                  title={
+                                    isSelf && isAdmin && numAdmins === 1
+                                      ? "Assign another admin before removing yourself"
+                                      : undefined
+                                  }
+                                >
+                                  {isAdmin ? "Admin" : "Make Admin"}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="removeUsers">
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        className="pl-10"
+                        placeholder="Search members to remove..."
+                        value={removeSearch}
+                        onChange={(e) => setRemoveSearch(e.target.value)}
+                      />
+                    </div>
+                    <div className="max-h-60 overflow-y-auto space-y-2">
+                      {editMembers
+                        .filter((m) => {
+                          if (!removeSearch) return true;
+                          const s = removeSearch.toLowerCase();
+                          return (
+                            (m.name || "").toLowerCase().includes(s) ||
+                            (m.email || "").toLowerCase().includes(s) ||
+                            m.clerkId.toLowerCase().includes(s)
+                          );
+                        })
+                        .map((m) => {
+                          const isSelf = m.clerkId === user?.id;
+                          const isAdmin = editAdmins.has(m.clerkId);
+                          const numAdmins = editAdmins.size;
+                          const disableRemove =
+                            isSelf || (isAdmin && numAdmins === 1);
+                          const title = isSelf
+                            ? "You cannot remove yourself"
+                            : isAdmin && numAdmins === 1
+                            ? "Assign another admin before removing the last admin"
+                            : undefined;
+                          return (
+                            <div
+                              key={m.clerkId}
+                              className="flex items-center justify-between p-2 rounded border"
+                            >
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {m.name || m.email || m.clerkId}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {m.clerkId}
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={disableRemove}
+                                title={title}
+                                onClick={() => removeMember(m.clerkId)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={saveGroupEdits}>Save Changes</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 }

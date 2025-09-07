@@ -61,6 +61,11 @@ export const getConversations = async (req, res) => {
     include: {
       lastMessage: true,
       users: true,
+      admins: {
+        include: {
+          user: true,
+        },
+      },
     },
     orderBy: {
       updatedAt: "desc",
@@ -89,10 +94,14 @@ export const getConversations = async (req, res) => {
           : [],
       };
     }
-    // For group conversations, include all users with only clerkId
+    // For group conversations, include all users with only clerkId and admins
     return {
       ...transformedConversation,
       users: conversation.users.map((user) => ({ clerkId: user.clerkId })),
+      admins: conversation.admins.map((admin) => ({
+        clerkId: admin.user.clerkId,
+        name: admin.user.name,
+      })),
     };
   });
 
@@ -109,19 +118,43 @@ export const getConversationById = async (req, res) => {
     include: {
       users: true,
       lastMessage: true,
+      admins: {
+        include: {
+          user: true,
+        },
+      },
     },
   });
-  res.json({ conversation });
+
+  if (!conversation) {
+    return res.status(404).json({ message: "Conversation not found" });
+  }
+
+  // Transform the conversation data to match the expected structure
+  const transformedConversation = {
+    ...conversation,
+    lastMessage: conversation.lastMessage
+      ? conversation.lastMessage.content
+      : null,
+    admins: conversation.admins.map((admin) => ({
+      clerkId: admin.user.clerkId,
+      name: admin.user.name,
+    })),
+  };
+
+  res.json({ conversation: transformedConversation });
 };
 
 export const createConversation = async (req, res) => {
-  const { ids, type, name } = req.body;
+  const { ids, type, name, description, adminId } = req.body;
 
   // Validate request body using Zod schema
   const validationResult = CreateConversationSchema.safeParse({
     ids,
     type,
     name,
+    description,
+    adminId,
   });
 
   if (!validationResult.success) {
@@ -137,6 +170,7 @@ export const createConversation = async (req, res) => {
     ids: validatedIds,
     type: validatedType,
     name: validatedName,
+    description: validatedDescription,
   } = validatedData;
 
   if (validatedType === "one_to_one") {
@@ -153,6 +187,7 @@ export const createConversation = async (req, res) => {
       },
       include: {
         lastMessage: true,
+        users: true,
       },
     });
 
@@ -176,6 +211,7 @@ export const createConversation = async (req, res) => {
       },
       include: {
         lastMessage: true,
+        users: true,
       },
     });
 
@@ -192,9 +228,21 @@ export const createConversation = async (req, res) => {
         },
         type: validatedType.toUpperCase(),
         name: validatedName,
+        description: validatedDescription,
+        admins: {
+          create: {
+            userId: adminId,
+          },
+        },
       },
       include: {
         lastMessage: true,
+        users: true,
+        admins: {
+          include: {
+            user: true,
+          },
+        },
       },
     });
 
@@ -244,5 +292,146 @@ export const deleteConversation = async (req, res) => {
   } catch (error) {
     console.error("Error deleting conversation:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// Update group details (admins only)
+export const updateConversation = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      requesterId,
+      name,
+      description,
+      addMemberIds = [],
+      removeMemberIds = [],
+      addAdminIds = [],
+      removeAdminIds = [],
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "Conversation ID is required" });
+    }
+    if (!requesterId) {
+      return res.status(400).json({ message: "requesterId is required" });
+    }
+
+    // Ensure conversation exists and requester is a member
+    const conversation = await prisma.conversation.findUnique({
+      where: { id },
+      include: {
+        users: true,
+        admins: { include: { user: true } },
+      },
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    const requesterIsMember = conversation.users.some(
+      (u) => u.clerkId === requesterId
+    );
+    if (!requesterIsMember) {
+      return res.status(403).json({ message: "Not a conversation member" });
+    }
+
+    const requesterIsAdmin = conversation.admins.some(
+      (a) => a.user.clerkId === requesterId
+    );
+    if (!requesterIsAdmin) {
+      return res.status(403).json({ message: "Only admins can update group" });
+    }
+
+    // Prepare nested updates
+    const data = {};
+    if (typeof name === "string") data.name = name;
+    if (typeof description === "string") data.description = description;
+
+    if (addMemberIds.length || removeMemberIds.length) {
+      data.users = {
+        ...(addMemberIds.length
+          ? { connect: addMemberIds.map((id) => ({ clerkId: id })) }
+          : {}),
+        ...(removeMemberIds.length
+          ? { disconnect: removeMemberIds.map((id) => ({ clerkId: id })) }
+          : {}),
+      };
+    }
+
+    // Admins are managed via junction table ConversationAdmin
+    // Prevent leaving the conversation with zero admins
+    const currentAdminIds = new Set(
+      conversation.admins.map((a) => a.user.clerkId)
+    );
+    const nextAdminIds = new Set(currentAdminIds);
+    for (const addId of addAdminIds) nextAdminIds.add(addId);
+    for (const remId of removeAdminIds) nextAdminIds.delete(remId);
+    if (nextAdminIds.size === 0) {
+      return res
+        .status(400)
+        .json({ message: "At least one admin is required for a group." });
+    }
+
+    const adminOps = [];
+    for (const addId of addAdminIds) {
+      adminOps.push(
+        prisma.conversationAdmin.upsert({
+          where: {
+            userId_conversationId: { userId: addId, conversationId: id },
+          },
+          update: {},
+          create: { userId: addId, conversationId: id },
+        })
+      );
+    }
+    for (const remId of removeAdminIds) {
+      adminOps.push(
+        prisma.conversationAdmin.deleteMany({
+          where: { userId: remId, conversationId: id },
+        })
+      );
+    }
+
+    // Apply conversation updates (name/description/users)
+    const updatedConversation = Object.keys(data).length
+      ? await prisma.conversation.update({
+          where: { id },
+          data,
+          include: {
+            users: true,
+            lastMessage: true,
+            admins: { include: { user: true } },
+          },
+        })
+      : await prisma.conversation.findUnique({
+          where: { id },
+          include: {
+            users: true,
+            lastMessage: true,
+            admins: { include: { user: true } },
+          },
+        });
+
+    if (adminOps.length) {
+      await prisma.$transaction(adminOps);
+    }
+
+    // Return transformed structure consistent with other endpoints
+    const transformed = {
+      ...updatedConversation,
+      lastMessage: updatedConversation.lastMessage
+        ? updatedConversation.lastMessage.content
+        : null,
+      admins: updatedConversation.admins.map((a) => ({
+        clerkId: a.user.clerkId,
+        name: a.user.name,
+      })),
+    };
+
+    return res.json({ message: "Conversation updated", data: transformed });
+  } catch (error) {
+    console.error("Error updating conversation:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };

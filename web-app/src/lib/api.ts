@@ -8,6 +8,8 @@ import type {
   GetConversationsResponse,
   GetMessagesResponse,
   GetUsersResponse,
+  UpdateGroupRequest,
+  UpdateGroupResponse,
 } from "../types";
 
 export const getConversations = async (
@@ -42,6 +44,7 @@ export const createGroup = async (
     name: groupData.name,
     description: groupData.description,
     ids: groupData.userIds,
+    adminId: groupData.adminId,
   });
   return data;
 };
@@ -50,6 +53,24 @@ export const getMessages = async (
   conversationId: string
 ): Promise<GetMessagesResponse> => {
   const { data } = await axios.get(`/api/messages/${conversationId}`);
+  return data;
+};
+
+export const updateGroup = async (
+  payload: UpdateGroupRequest
+): Promise<UpdateGroupResponse> => {
+  const { data } = await axios.put(
+    `/api/conversations/${payload.conversationId}`,
+    {
+      requesterId: payload.requesterId,
+      name: payload.name,
+      description: payload.description,
+      addMemberIds: payload.addMemberIds,
+      removeMemberIds: payload.removeMemberIds,
+      addAdminIds: payload.addAdminIds,
+      removeAdminIds: payload.removeAdminIds,
+    }
+  );
   return data;
 };
 

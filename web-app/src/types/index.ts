@@ -45,6 +45,7 @@ export interface Conversation {
   description: string | null;
   type: CONVERSATION_TYPE;
   users: User[];
+  admins: { clerkId: string; name: string | null }[];
   messages: Message[];
   notifications: Notification[];
   lastMessageId: string | null;
@@ -99,8 +100,24 @@ export interface CreateGroupRequest {
   name: string;
   description?: string;
   userIds: string[];
+  adminId: string;
 }
 
 export interface CreateGroupResponse {
+  data: Conversation;
+}
+
+export interface UpdateGroupRequest {
+  conversationId: string;
+  requesterId: string;
+  name?: string;
+  description?: string;
+  addMemberIds?: string[];
+  removeMemberIds?: string[];
+  addAdminIds?: string[];
+  removeAdminIds?: string[];
+}
+
+export interface UpdateGroupResponse {
   data: Conversation;
 }

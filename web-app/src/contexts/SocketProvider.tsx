@@ -7,7 +7,13 @@ import { SocketContext, type SocketContextType } from "./socket-context";
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<SocketContextType["socket"]>();
-  const { selectedConversation, setMessages } = useChatStore();
+  const {
+    selectedConversation,
+    conversations,
+    setMessages,
+    setConversations,
+    setSelectedConversation,
+  } = useChatStore();
   const { user } = useUser();
 
   const sendMessage = useCallback(
@@ -20,6 +26,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket, selectedConversation]
   );
 
+  const createGroupSocketMessage = useCallback(
+    (data: any) => {
+      socket?.emit("create:group", data);
+    },
+    [socket]
+  );
+
   const onMessageRec = useCallback(
     (msg: Message) => {
       console.log(msg);
@@ -28,19 +41,30 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [setMessages]
   );
 
+  const onCreateGroup = useCallback(
+    (data: any) => {
+      setConversations([data, ...conversations]);
+      setSelectedConversation(data);
+    },
+    [conversations, setConversations, setSelectedConversation]
+  );
+
   useEffect(() => {
     const _socket = io(import.meta.env.VITE_API_URL);
     setSocket(_socket);
 
     _socket.emit("join:server", user?.id);
     _socket.on("message", onMessageRec);
+    _socket.on("create:group", onCreateGroup);
 
     return () => {
       _socket.disconnect();
     };
-  }, [user?.id, onMessageRec]);
+  }, [user?.id, onMessageRec, onCreateGroup]);
   return (
-    <SocketContext.Provider value={{ socket, sendMessage }}>
+    <SocketContext.Provider
+      value={{ socket, sendMessage, createGroupSocketMessage }}
+    >
       {children}
     </SocketContext.Provider>
   );

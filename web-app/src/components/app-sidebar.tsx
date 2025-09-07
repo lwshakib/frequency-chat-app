@@ -37,6 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
+import { useSocket } from "@/hooks/useSocket";
 import {
   createGroup,
   getConversationById,
@@ -68,7 +69,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setIsLoadingConversations,
   } = useChatStore();
   const { user } = useUser();
-
+  const { createGroupSocketMessage } = useSocket();
   // Group creation state
   const [groupName, setGroupName] = React.useState("");
   const [groupDescription, setGroupDescription] = React.useState("");
@@ -118,12 +119,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         name: groupName.trim(),
         description: groupDescription.trim() || undefined,
         userIds,
+        adminId: user.id,
       };
 
       const response = await createGroup(groupData);
 
-      // Add the new conversation to the list
-      setConversations([response.data, ...conversations]);
+      createGroupSocketMessage(response.data);
 
       // Reset form
       setGroupName("");
@@ -510,6 +511,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     }
                     return "Unknown";
                   };
+
+                  // Check if current user is admin
+                  const isCurrentUserAdmin = conversation.admins?.some(
+                    (admin) => admin.clerkId === user?.id
+                  );
 
                   // Get last message preview
                   const getLastMessage = () => {

@@ -45,6 +45,13 @@ class SocketService {
         await pub.publish("MESSAGES", JSON.stringify(data));
       });
 
+      socket.on("create:group", (data) => {
+        console.log(data);
+        
+        io.to(data.users.map((user) => user.clerkId)).emit("create:group", data);
+      });
+
+
       socket.on("disconnect", () => {
         console.log("A user disconnected with id : ", socket.id);
       });
