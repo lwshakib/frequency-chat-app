@@ -13,6 +13,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     setMessages,
     setConversations,
     setSelectedConversation,
+    incrementUnread,
   } = useChatStore();
   const { user } = useUser();
 
@@ -37,9 +38,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const onMessageRec = useCallback(
     (msg: Message) => {
       console.log(msg);
-      setMessages((prev) => [...prev, msg]);
+      // If message is for currently open conversation, append to messages
+      if (
+        selectedConversation &&
+        msg.conversationId === selectedConversation.id
+      ) {
+        setMessages((prev) => [...prev, msg]);
+      } else {
+        // Otherwise increment unread for that conversation
+        incrementUnread(msg.conversationId);
+      }
     },
-    [setMessages]
+    [setMessages, incrementUnread, selectedConversation]
   );
 
   const onCreateGroup = useCallback(

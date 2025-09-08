@@ -552,7 +552,7 @@ export default function ChatPage() {
                           Edit Group Details
                         </DropdownMenuItem>
                       )}
-                    <DropdownMenuItem>Mute Notifications</DropdownMenuItem>
+                    {/* Notifications removed */}
                     {selectedConversation.type === "ONE_TO_ONE" && (
                       <DropdownMenuItem>Block User</DropdownMenuItem>
                     )}

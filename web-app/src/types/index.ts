@@ -47,24 +47,10 @@ export interface Conversation {
   users: User[];
   admins: { clerkId: string; name: string | null }[];
   messages: Message[];
-  notifications: Notification[];
   lastMessageId: string | null;
   lastMessage: Message | null;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface Notification {
-  id: string;
-  senderId: string;
-  messageId: string;
-  isOpened: boolean;
-  conversationId: string;
-  createdAt: Date;
-  updatedAt: Date;
-  sender: User;
-  message: Message;
-  conversation: Conversation;
 }
 
 // API Response types

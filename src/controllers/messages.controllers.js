@@ -23,9 +23,9 @@ export const createMessage = async (req, res) => {
       conversationId,
       senderId: userId,
     },
-    include:{
-      sender: true
-    }
+    include: {
+      sender: true,
+    },
   });
 
   await prisma.conversation.update({
@@ -33,15 +33,7 @@ export const createMessage = async (req, res) => {
       id: conversationId,
     },
     data: {
-      lastMessageId: newMessage.id
-    },
-  });
-
-  const notification = await prisma.notifications.create({
-    data: {
-      messageId: newMessage.id,
-      conversationId: conversationId,
-      senderId: userId,
+      lastMessageId: newMessage.id,
     },
   });
 

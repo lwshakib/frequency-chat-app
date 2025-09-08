@@ -45,16 +45,7 @@ import {
   getUsers,
 } from "@/lib/api";
 import { SignOutButton, useUser } from "@clerk/clerk-react";
-import {
-  Bell,
-  LogOut,
-  Moon,
-  Search,
-  Sun,
-  UserPlus,
-  Users,
-  X,
-} from "lucide-react";
+import { LogOut, Moon, Search, Sun, UserPlus, Users, X } from "lucide-react";
 import { Link } from "react-router";
 import type { Conversation, User } from "../types";
 import { CONVERSATION_TYPE } from "../types";
@@ -68,6 +59,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setSelectedConversation,
     isLoadingConversations,
     setIsLoadingConversations,
+    unreadCountByConversationId,
+    resetUnread,
   } = useChatStore();
   const { user } = useUser();
   const { createGroupSocketMessage } = useSocket();
@@ -160,10 +153,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // Fetch full conversation details
       const data = await getConversationById(conversation.id, user.id);
       setSelectedConversation(data.conversation);
+      resetUnread(conversation.id);
     } catch (error) {
       console.error("Error fetching conversation details:", error);
       // Fallback to setting the conversation from the list if API call fails
       setSelectedConversation(conversation);
+      resetUnread(conversation.id);
     }
   };
 
@@ -185,106 +180,46 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="offcanvas" {...props}>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-transparent active:bg-transparent focus:bg-transparent"
-            >
-              <Link to="/">
-                <img
-                  src={
-                    resolvedTheme === "dark"
-                      ? "/dark_logo.svg"
-                      : "/light_logo.svg"
-                  }
-                  alt="Frequency Logo"
-                  className="h-8 w-auto"
-                />
-                <span>Frequency</span>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <div className="px-2 py-2 flex items-center justify-between">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                className="data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-transparent active:bg-transparent focus:bg-transparent"
+              >
+                <Link to="/">
+                  <img
+                    src={
+                      resolvedTheme === "dark"
+                        ? "/dark_logo.svg"
+                        : "/light_logo.svg"
+                    }
+                    alt="Frequency Logo"
+                    className="h-8 w-auto"
+                  />
+                  <span>Frequency</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          <Button
+            variant="outline"
+            size="icon"
+            className="cursor-pointer"
+            onClick={() =>
+              setTheme(resolvedTheme === "dark" ? "light" : "dark")
+            }
+          >
+            {resolvedTheme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <div className="p-4 space-y-4">
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="cursor-pointer"
-              onClick={() =>
-                setTheme(resolvedTheme === "dark" ? "light" : "dark")
-              }
-            >
-              {resolvedTheme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </Button>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="cursor-pointer"
-                >
-                  <Bell className="h-4 w-4" />
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Notifications</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        New message from John Doe
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        2 minutes ago
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Hey! How are you doing today?
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
-                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        Sarah Wilson sent a message
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        15 minutes ago
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Can we schedule a meeting for tomorrow?
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start space-x-3 p-3 rounded-lg bg-muted/50">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        Mike Johnson sent a message
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        1 hour ago
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Thanks for the quick response!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button className="w-full justify-start cursor-pointer">
@@ -364,7 +299,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 ],
                                 admins: [],
                                 messages: [],
-                                notifications: [],
                                 lastMessageId: null,
                                 lastMessage: null,
                                 createdAt: new Date(),
@@ -627,6 +561,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {getLastMessage()}
                         </div>
                       </div>
+                      {unreadCountByConversationId[conversation.id] > 0 && (
+                        <div className="ml-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center">
+                          {unreadCountByConversationId[conversation.id] > 99
+                            ? "99+"
+                            : unreadCountByConversationId[conversation.id]}
+                        </div>
+                      )}
                     </Button>
                   );
                 })
