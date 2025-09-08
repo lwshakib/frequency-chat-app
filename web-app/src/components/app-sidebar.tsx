@@ -61,6 +61,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setIsLoadingConversations,
     unreadCountByConversationId,
     resetUnread,
+    typingByConversationId,
   } = useChatStore();
   const { user } = useUser();
   const { createGroupSocketMessage } = useSocket();
@@ -509,10 +510,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
                   // Admin check not used here; compute when needed
 
-                  // Get last message preview
+                  // Typing label overrides last message
+                  const getTypingLabel = () => {
+                    const typingIds =
+                      typingByConversationId[conversation.id] || [];
+                    const visible = typingIds.filter(
+                      (id) => id !== (user?.id || "")
+                    );
+                    if (visible.length === 0) return null;
+                    const names = conversation.users
+                      .filter((u) => visible.includes(u.clerkId))
+                      .map((u) => u.name || u.email || "Someone");
+                    if (names.length === 1) return `${names[0]} is typing…`;
+                    const prefix = names.slice(0, 2).join(", ");
+                    return `${prefix}${
+                      names.length > 2 ? ", …" : ""
+                    } are typing…`;
+                  };
+
+                  // Get last message preview (used when not typing)
                   const getLastMessage = () => {
+                    const typing = getTypingLabel();
+                    if (typing) return typing;
                     if (conversation.lastMessage) {
-                      return conversation.lastMessage.content || "No message";
+                      return conversation.lastMessage || "No message";
                     }
                     return "No messages yet";
                   };

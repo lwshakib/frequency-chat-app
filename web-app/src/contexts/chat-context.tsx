@@ -8,6 +8,7 @@ type ChatStore = {
   isLoadingConversations: boolean;
   isLoadingMessages: boolean;
   unreadCountByConversationId: Record<string, number>;
+  typingByConversationId: Record<string, string[]>;
   setConversations: (conversations: Conversation[]) => void;
   setSelectedConversation: (conversation: Conversation | null) => void;
   setMessages: (messages: Message[] | ((prev: Message[]) => Message[])) => void;
@@ -15,6 +16,8 @@ type ChatStore = {
   setIsLoadingMessages: (loading: boolean) => void;
   incrementUnread: (conversationId: string) => void;
   resetUnread: (conversationId: string) => void;
+  addTyping: (conversationId: string, clerkId: string) => void;
+  removeTyping: (conversationId: string, clerkId: string) => void;
 };
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -24,6 +27,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   isLoadingConversations: false,
   isLoadingMessages: false,
   unreadCountByConversationId: {},
+  typingByConversationId: {},
   setConversations: (conversations) => set({ conversations }),
   setSelectedConversation: (conversation) =>
     set((state) => {
@@ -31,9 +35,14 @@ export const useChatStore = create<ChatStore>((set) => ({
       if (conversation?.id) {
         next[conversation.id] = 0;
       }
+      const typing = { ...state.typingByConversationId };
+      if (conversation?.id) {
+        typing[conversation.id] = [];
+      }
       return {
         selectedConversation: conversation,
         unreadCountByConversationId: next,
+        typingByConversationId: typing,
       };
     }),
   setMessages: (messages) =>
@@ -59,4 +68,25 @@ export const useChatStore = create<ChatStore>((set) => ({
         [conversationId]: 0,
       },
     })),
+  addTyping: (conversationId, clerkId) =>
+    set((state) => {
+      const list = state.typingByConversationId[conversationId] || [];
+      if (list.includes(clerkId)) return {} as Partial<ChatStore>;
+      return {
+        typingByConversationId: {
+          ...state.typingByConversationId,
+          [conversationId]: [...list, clerkId],
+        },
+      } as Partial<ChatStore>;
+    }),
+  removeTyping: (conversationId, clerkId) =>
+    set((state) => {
+      const list = state.typingByConversationId[conversationId] || [];
+      return {
+        typingByConversationId: {
+          ...state.typingByConversationId,
+          [conversationId]: list.filter((id) => id !== clerkId),
+        },
+      } as Partial<ChatStore>;
+    }),
 }));

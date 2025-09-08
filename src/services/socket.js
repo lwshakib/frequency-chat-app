@@ -49,6 +49,30 @@ class SocketService {
         );
       });
 
+      // Typing indicators
+      socket.on("typing:start", (payload) => {
+        try {
+          const { conversationId, fromClerkId, toClerkIds } = payload || {};
+          if (!conversationId || !fromClerkId || !Array.isArray(toClerkIds))
+            return;
+          io.to(toClerkIds).emit("typing:start", {
+            conversationId,
+            fromClerkId,
+          });
+        } catch {}
+      });
+      socket.on("typing:stop", (payload) => {
+        try {
+          const { conversationId, fromClerkId, toClerkIds } = payload || {};
+          if (!conversationId || !fromClerkId || !Array.isArray(toClerkIds))
+            return;
+          io.to(toClerkIds).emit("typing:stop", {
+            conversationId,
+            fromClerkId,
+          });
+        } catch {}
+      });
+
       socket.on("disconnect", () => {
         console.log("A user disconnected with id : ", socket.id);
       });

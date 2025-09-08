@@ -103,7 +103,7 @@ export async function startMessageConsumer() {
           const messageData = JSON.parse(message.value).message;
           console.log("Processing message:", messageData);
 
-          await prisma.message.create({
+          const newMessage = await prisma.message.create({
             data: {
               content: messageData.content,
               conversationId: messageData.conversationId,
@@ -112,6 +112,11 @@ export async function startMessageConsumer() {
               files: messageData.files,
               type: messageData.type,
             },
+          });
+
+          await prisma.conversation.update({
+            where: { id: newMessage.conversationId },
+            data: { lastMessageId: newMessage.id },
           });
 
           console.log("Message processed successfully");

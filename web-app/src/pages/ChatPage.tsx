@@ -60,11 +60,17 @@ export default function ChatPage() {
     setSelectedConversation,
   } = useChatStore();
   const { user } = useUser();
-  const { sendMessage: sendMessageSocket, createGroupSocketMessage } =
-    useSocket();
+  const {
+    sendMessage: sendMessageSocket,
+    createGroupSocketMessage,
+    emitTypingStart,
+    emitTypingStop,
+  } = useSocket();
 
   // Message input state
   const [messageInput, setMessageInput] = React.useState("");
+  const typingTimeoutRef = React.useRef<number | null>(null);
+  const lastTypingSentRef = React.useRef<number>(0);
 
   // Dialog state
   const [isMembersDialogOpen, setIsMembersDialogOpen] = React.useState(false);
@@ -421,6 +427,13 @@ export default function ChatPage() {
         },
       };
 
+      // Stop typing immediately on send
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      emitTypingStop(selectedConversation, user.id);
+
       sendMessageSocket(optimisticMessage);
       setMessageInput("");
     } catch (err) {
@@ -435,6 +448,35 @@ export default function ChatPage() {
       sendMessage();
     }
   };
+
+  // Emit typing as user types with debounce
+  const onChangeMessage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessageInput(value);
+    if (!selectedConversation || !user) return;
+    const now = Date.now();
+    const elapsed = now - lastTypingSentRef.current;
+    if (elapsed > 1000) {
+      emitTypingStart(selectedConversation, user.id);
+      lastTypingSentRef.current = now;
+    }
+    if (typingTimeoutRef.current) {
+      window.clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = window.setTimeout(() => {
+      if (selectedConversation && user) {
+        emitTypingStop(selectedConversation, user.id);
+      }
+    }, 1500);
+  };
+
+  React.useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        window.clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Message skeleton component
   const MessageSkeleton = () => (
@@ -764,7 +806,7 @@ export default function ChatPage() {
                   placeholder="Type a message..."
                   className="pr-20"
                   value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
+                  onChange={onChangeMessage}
                   onKeyPress={handleKeyPress}
                 />
 
@@ -839,6 +881,10 @@ export default function ChatPage() {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
+            {/* Typing indicator */}
+            {selectedConversation && (
+              <TypingIndicator conversationId={selectedConversation.id} />
+            )}
           </div>
         )}
       </SidebarInset>
@@ -1212,4 +1258,22 @@ export default function ChatPage() {
       </Dialog>
     </SidebarProvider>
   );
+}
+
+function TypingIndicator({ conversationId }: { conversationId: string }) {
+  const { typingByConversationId, selectedConversation } = useChatStore();
+  const { user } = useUser();
+  const typingIds = typingByConversationId[conversationId] || [];
+  const visibleIds = typingIds.filter((id) => id !== user?.id);
+  if (!selectedConversation || visibleIds.length === 0) return null;
+  const names = selectedConversation.users
+    .filter((u) => visibleIds.includes(u.clerkId))
+    .map((u) => u.name || u.email || "Someone");
+  const label =
+    names.length === 1
+      ? `${names[0]} is typing…`
+      : `${names.slice(0, 2).join(", ")}${
+          names.length > 2 ? ", …" : ""
+        } are typing…`;
+  return <div className="px-2 pt-2 text-xs text-muted-foreground">{label}</div>;
 }

@@ -8,6 +8,8 @@ export interface SocketContextType {
   createGroupSocketMessage: (
     data: Conversation & { initiatorId?: string }
   ) => void;
+  emitTypingStart: (conversation: Conversation, fromClerkId: string) => void;
+  emitTypingStop: (conversation: Conversation, fromClerkId: string) => void;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(
