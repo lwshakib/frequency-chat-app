@@ -40,11 +40,17 @@ app.use(
         "https://*.clerk.com",
         "https://*.clerk.dev",
       ],
+      // Allow web workers created from blob: URLs (used by Clerk)
+      workerSrc: ["'self'", "blob:"],
+      // Safari fallback for worker-src
+      childSrc: ["'self'", "blob:"],
       connectSrc: [
         "'self'",
         "https://*.clerk.accounts.dev",
         "https://*.clerk.com",
         "https://*.clerk.dev",
+        // Allow websocket connections
+        "wss:",
       ],
       frameSrc: [
         "'self'",

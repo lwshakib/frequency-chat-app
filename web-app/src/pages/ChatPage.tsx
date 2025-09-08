@@ -1,4 +1,9 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import ChatHeader from "@/components/chat/ChatHeader";
+import MessageInput from "@/components/chat/MessageInput";
+import MessageSkeleton from "@/components/chat/MessageSkeleton";
+import MessagesList from "@/components/chat/MessagesList";
+import TypingIndicator from "@/components/chat/TypingIndicator";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -6,26 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
@@ -39,20 +31,7 @@ import {
 } from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
-import {
-  Camera,
-  File,
-  Image,
-  Mic,
-  MoreVertical,
-  Paperclip,
-  Phone,
-  Search,
-  Send,
-  Smile,
-  Users,
-  Video,
-} from "lucide-react";
+import { Phone, Search, Users, Video } from "lucide-react";
 import * as React from "react";
 import type { Conversation, Message } from "../types";
 import { MESSAGE_READ_STATUS } from "../types";
@@ -488,38 +467,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  // Message skeleton component
-  const MessageSkeleton = () => (
-    <div className="space-y-4">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div
-          key={index}
-          className={`flex ${
-            index % 3 === 0 ? "justify-end" : "justify-start"
-          }`}
-        >
-          <div
-            className={`flex max-w-[70%] ${
-              index % 3 === 0 ? "flex-row-reverse" : "flex-row"
-            } items-end space-x-2`}
-          >
-            {/* Avatar skeleton */}
-            <Skeleton className="w-8 h-8 rounded-full flex-shrink-0" />
-
-            {/* Message bubble skeleton */}
-            <div className="space-y-2">
-              <Skeleton
-                className={`h-12 ${
-                  index % 3 === 0 ? "w-32" : "w-40"
-                } rounded-2xl`}
-              />
-              <Skeleton className="h-3 w-12" />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  // Message skeleton extracted to component
 
   // Determine whether to show loading UI
   const shouldShowLoading = React.useMemo(() => {
@@ -541,107 +489,37 @@ export default function ChatPage() {
       <AppSidebar variant="inset" />
       <SidebarInset className="flex flex-col">
         {selectedConversation && (
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b">
-            <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-              <SidebarTrigger className="-ml-1" />
-              <Separator
-                orientation="vertical"
-                className="mx-2 data-[orientation=vertical]:h-4"
-              />
-              {/* Conversation Info Section */}
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <div
-                    className={`w-10 h-10 rounded-full ${getAvatarColor(
-                      selectedConversation.id
-                    )} flex items-center justify-center`}
-                  >
-                    <span className="text-sm text-white font-medium">
-                      {getInitials(getDisplayName())}
-                    </span>
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-background rounded-full"></div>
-                </div>
-                <div className="flex flex-col">
-                  <h1 className="text-base font-medium">{getDisplayName()}</h1>
-                  <span className="text-xs text-muted-foreground">
-                    {getDisplayDescription()}
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="ml-auto flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Phone className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <Video className="h-4 w-4" />
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {selectedConversation.type === "GROUP" ? (
-                      <DropdownMenuItem
-                        onClick={() => setIsMembersDialogOpen(true)}
-                      >
-                        <Users className="h-4 w-4 mr-2" />
-                        View Details
-                      </DropdownMenuItem>
-                    ) : (
-                      <DropdownMenuItem
-                        onClick={() => setIsProfileDialogOpen(true)}
-                      >
-                        <Users className="h-4 w-4 mr-2" />
-                        View Profile
-                      </DropdownMenuItem>
-                    )}
-                    {selectedConversation.type === "GROUP" &&
-                      currentUserIsAdmin && (
-                        <DropdownMenuItem onClick={openEditDialog}>
-                          Edit Group Details
-                        </DropdownMenuItem>
-                      )}
-                    {/* Notifications removed */}
-                    <DropdownMenuItem
-                      className="text-red-600"
-                      onClick={async () => {
-                        if (!selectedConversation || !user) return;
-                        try {
-                          await deleteConversation(
-                            selectedConversation.id,
-                            user.id
-                          );
-                          const state = useChatStore.getState() as unknown as {
-                            conversations: Conversation[];
-                            setConversations: (c: Conversation[]) => void;
-                            setSelectedConversation: (
-                              c: Conversation | null
-                            ) => void;
-                          };
-                          state.setConversations(
-                            state.conversations.filter(
-                              (c) => c.id !== selectedConversation.id
-                            )
-                          );
-                          state.setSelectedConversation(null);
-                          emitDeleteConversation(selectedConversation);
-                        } catch (e) {
-                          console.error("Failed to delete conversation", e);
-                        }
-                      }}
-                    >
-                      Delete Chat
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-          </header>
+          <ChatHeader
+            title={getDisplayName()}
+            description={getDisplayDescription()}
+            avatarColorClass={getAvatarColor(selectedConversation.id)}
+            initials={getInitials(getDisplayName())}
+            isGroup={selectedConversation.type === "GROUP"}
+            currentUserIsAdmin={currentUserIsAdmin}
+            onOpenMembers={() => setIsMembersDialogOpen(true)}
+            onOpenProfile={() => setIsProfileDialogOpen(true)}
+            onOpenEdit={openEditDialog}
+            onDelete={async () => {
+              if (!selectedConversation || !user) return;
+              try {
+                await deleteConversation(selectedConversation.id, user.id);
+                const state = useChatStore.getState() as unknown as {
+                  conversations: Conversation[];
+                  setConversations: (c: Conversation[]) => void;
+                  setSelectedConversation: (c: Conversation | null) => void;
+                };
+                state.setConversations(
+                  state.conversations.filter(
+                    (c) => c.id !== selectedConversation.id
+                  )
+                );
+                state.setSelectedConversation(null);
+                emitDeleteConversation(selectedConversation);
+              } catch (e) {
+                console.error("Failed to delete conversation", e);
+              }
+            }}
+          />
         )}
 
         {!selectedConversation && (
@@ -681,59 +559,13 @@ export default function ChatPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${
-                          isCurrentUser(message.senderId)
-                            ? "justify-end"
-                            : "justify-start"
-                        }`}
-                      >
-                        <div
-                          className={`flex max-w-[70%] ${
-                            isCurrentUser(message.senderId)
-                              ? "flex-row-reverse"
-                              : "flex-row"
-                          } items-end space-x-2`}
-                        >
-                          {/* Avatar */}
-                          <div
-                            className={`w-8 h-8 rounded-full ${getAvatarColor(
-                              message.senderId
-                            )} flex items-center justify-center flex-shrink-0`}
-                          >
-                            <span className="text-xs text-white font-medium">
-                              {getInitials(
-                                message.sender.name || message.sender.email
-                              )}
-                            </span>
-                          </div>
-
-                          {/* Message bubble */}
-                          <div
-                            className={`px-4 py-2 rounded-2xl ${
-                              isCurrentUser(message.senderId)
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
-                            }`}
-                          >
-                            <p className="text-sm">{message.content}</p>
-                            <p
-                              className={`text-xs mt-1 ${
-                                isCurrentUser(message.senderId)
-                                  ? "text-primary-foreground/70"
-                                  : "text-muted-foreground"
-                              }`}
-                            >
-                              {formatMessageTime(message.createdAt)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <MessagesList
+                    messages={messages}
+                    isCurrentUser={isCurrentUser}
+                    getAvatarColor={getAvatarColor}
+                    getInitials={getInitials}
+                    formatMessageTime={formatMessageTime}
+                  />
                 )
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -820,116 +652,16 @@ export default function ChatPage() {
 
         {/* Chat Input Area - Only show when conversation is selected */}
         {selectedConversation && (
-          <div className="border-t p-4 shrink-0">
-            <div className="flex items-center gap-2">
-              {/* Media Upload Button */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Paperclip className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuItem>
-                    <Image className="h-4 w-4 mr-2" />
-                    Photo
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Camera className="h-4 w-4 mr-2" />
-                    Camera
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <File className="h-4 w-4 mr-2" />
-                    Document
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              <div className="flex-1 relative">
-                <Input
-                  placeholder="Type a message..."
-                  className="pr-20"
-                  value={messageInput}
-                  onChange={onChangeMessage}
-                  onKeyPress={handleKeyPress}
-                />
-
-                {/* Emoji Picker */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
-                    >
-                      <Smile className="h-4 w-4" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-4" align="end">
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Emojis</h4>
-                      <div className="grid grid-cols-8 gap-1">
-                        {[
-                          "😀",
-                          "😂",
-                          "😍",
-                          "🥰",
-                          "😎",
-                          "🤔",
-                          "😢",
-                          "😡",
-                          "👍",
-                          "👎",
-                          "❤️",
-                          "🔥",
-                          "💯",
-                          "🎉",
-                          "👏",
-                          "🙌",
-                          "😊",
-                          "😘",
-                          "🤗",
-                          "😴",
-                          "🤤",
-                          "😋",
-                          "🥳",
-                          "😇",
-                        ].map((emoji) => (
-                          <Button
-                            key={emoji}
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-lg hover:bg-muted"
-                            onClick={() => {
-                              setMessageInput((prev) => prev + emoji);
-                            }}
-                          >
-                            {emoji}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Mic className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                className="h-8 w-8"
-                onClick={sendMessage}
-                disabled={!messageInput.trim()}
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-            {/* Typing indicator */}
-            {selectedConversation && (
-              <TypingIndicator conversationId={selectedConversation.id} />
-            )}
-          </div>
+          <>
+            <MessageInput
+              messageInput={messageInput}
+              onChangeMessage={onChangeMessage}
+              onKeyPress={handleKeyPress}
+              onSend={sendMessage}
+              onEmojiAppend={(emoji) => setMessageInput((prev) => prev + emoji)}
+            />
+            <TypingIndicator conversationId={selectedConversation.id} />
+          </>
         )}
       </SidebarInset>
 
@@ -1406,20 +1138,4 @@ export default function ChatPage() {
   );
 }
 
-function TypingIndicator({ conversationId }: { conversationId: string }) {
-  const { typingByConversationId, selectedConversation } = useChatStore();
-  const { user } = useUser();
-  const typingIds = typingByConversationId[conversationId] || [];
-  const visibleIds = typingIds.filter((id) => id !== user?.id);
-  if (!selectedConversation || visibleIds.length === 0) return null;
-  const names = selectedConversation.users
-    .filter((u) => visibleIds.includes(u.clerkId))
-    .map((u) => u.name || u.email || "Someone");
-  const label =
-    names.length === 1
-      ? `${names[0]} is typing…`
-      : `${names.slice(0, 2).join(", ")}${
-          names.length > 2 ? ", …" : ""
-        } are typing…`;
-  return <div className="px-2 pt-2 text-xs text-muted-foreground">{label}</div>;
-}
+// TypingIndicator extracted to component
