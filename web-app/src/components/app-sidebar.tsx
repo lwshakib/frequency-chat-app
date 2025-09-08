@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import ConversationList from "@/components/chat/ConversationList";
+import ConversationSkeleton from "@/components/chat/ConversationSkeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +35,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
@@ -169,20 +170,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   };
 
-  // Skeleton component for conversation loading
-  const ConversationSkeleton = () => (
-    <div className="space-y-1">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="flex items-center space-x-3 p-2 rounded-md">
-          <Skeleton className="w-6 h-6 rounded-full" />
-          <div className="flex-1 space-y-1">
-            <Skeleton className="h-4 w-3/4" />
-            <Skeleton className="h-3 w-1/2" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  // Skeleton extracted to component
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -512,118 +500,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   No Conversations
                 </div>
               ) : (
-                conversations.map((conversation) => {
-                  // Get other users (excluding current user)
-                  const otherUsers = conversation.users.filter(
-                    (u) => u.clerkId !== (user?.id || "")
-                  );
-
-                  // Generate initials for display
-                  const getInitials = (name: string) => {
-                    return name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .toUpperCase()
-                      .slice(0, 2);
-                  };
-
-                  // Get conversation display name
-                  const getDisplayName = () => {
-                    if (conversation.name) return conversation.name;
-                    if (
-                      conversation.type === "ONE_TO_ONE" &&
-                      otherUsers.length > 0
-                    ) {
-                      return otherUsers[0].name || otherUsers[0].email;
-                    }
-                    return "Unknown";
-                  };
-
-                  // Admin check not used here; compute when needed
-
-                  // Typing label overrides last message
-                  const getTypingLabel = () => {
-                    const typingIds =
-                      typingByConversationId[conversation.id] || [];
-                    const visible = typingIds.filter(
-                      (id) => id !== (user?.id || "")
-                    );
-                    if (visible.length === 0) return null;
-                    const names = conversation.users
-                      .filter((u) => visible.includes(u.clerkId))
-                      .map((u) => u.name || u.email || "Someone");
-                    if (names.length === 1) return `${names[0]} is typing…`;
-                    const prefix = names.slice(0, 2).join(", ");
-                    return `${prefix}${
-                      names.length > 2 ? ", …" : ""
-                    } are typing…`;
-                  };
-
-                  // Get last message preview (used when not typing)
-                  const getLastMessage = () => {
-                    const typing = getTypingLabel();
-                    if (typing) return typing;
-                    if (conversation.lastMessage) {
-                      return conversation.lastMessage || "No message";
-                    }
-                    return "No messages yet";
-                  };
-
-                  // Generate avatar color based on conversation id
-                  const colors = [
-                    "bg-indigo-500",
-                    "bg-pink-500",
-                    "bg-teal-500",
-                    "bg-blue-500",
-                    "bg-green-500",
-                    "bg-orange-500",
-                    "bg-purple-500",
-                    "bg-red-500",
-                    "bg-yellow-500",
-                    "bg-cyan-500",
-                  ];
-                  const colorIndex =
-                    conversation.id.charCodeAt(0) % colors.length;
-                  const avatarColor = colors[colorIndex];
-
-                  const isSelected =
-                    selectedConversation?.id === conversation.id;
-
-                  return (
-                    <Button
-                      key={conversation.id}
-                      variant="ghost"
-                      className={`w-full justify-start h-auto cursor-pointer p-2 ${
-                        isSelected ? "bg-muted" : ""
-                      }`}
-                      onClick={() => handleConversationClick(conversation)}
-                    >
-                      <div
-                        className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center mr-2 flex-shrink-0`}
-                      >
-                        <span className="text-xs text-white font-medium">
-                          {getInitials(getDisplayName())}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0 text-left">
-                        <div className="text-sm font-medium">
-                          {getDisplayName()}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {getLastMessage()}
-                        </div>
-                      </div>
-                      {unreadCountByConversationId[conversation.id] > 0 && (
-                        <div className="ml-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center">
-                          {unreadCountByConversationId[conversation.id] > 99
-                            ? "99+"
-                            : unreadCountByConversationId[conversation.id]}
-                        </div>
-                      )}
-                    </Button>
-                  );
-                })
+                <ConversationList
+                  conversations={conversations}
+                  currentUserId={user?.id}
+                  unreadCountByConversationId={unreadCountByConversationId}
+                  typingByConversationId={typingByConversationId}
+                  onClickConversation={handleConversationClick}
+                  selectedConversationId={selectedConversation?.id}
+                />
               )}
             </div>
           </div>
