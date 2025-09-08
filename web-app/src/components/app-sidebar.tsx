@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router";
 import type { Conversation, User } from "../types";
+import { CONVERSATION_TYPE } from "../types";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { resolvedTheme, setTheme } = useTheme();
@@ -337,7 +338,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                                 id: tempId,
                                 name: null,
                                 description: null,
-                                type: "ONE_TO_ONE" as any,
+                                type: CONVERSATION_TYPE.ONE_TO_ONE,
                                 users: [
                                   {
                                     id: user.id,
@@ -572,10 +573,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     return "Unknown";
                   };
 
-                  // Check if current user is admin
-                  const isCurrentUserAdmin = conversation.admins?.some(
-                    (admin) => admin.clerkId === user?.id
-                  );
+                  // Admin check not used here; compute when needed
 
                   // Get last message preview
                   const getLastMessage = () => {
