@@ -48,7 +48,7 @@ export interface Conversation {
   admins: { clerkId: string; name: string | null }[];
   messages: Message[];
   lastMessageId: string | null;
-  lastMessage: Message | null;
+  lastMessage: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

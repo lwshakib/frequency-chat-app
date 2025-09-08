@@ -53,7 +53,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           const updatedConv: Conversation = {
             ...conv,
             lastMessageId: msg.id,
-            lastMessage: msg,
+            lastMessage: msg.content,
             updatedAt: new Date() as unknown as Conversation["updatedAt"],
           };
           const newList = [
