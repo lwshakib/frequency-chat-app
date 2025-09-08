@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "build": "cd web-app && npm install && npm run build",
+    "build": "cd web-app && npm ci --include=dev && npm run build",
     "migrate:dev": "prisma migrate dev --name init",
     "migrate:prod": "prisma migrate deploy",
     "generate": "prisma generate"
