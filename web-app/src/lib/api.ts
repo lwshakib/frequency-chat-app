@@ -49,6 +49,17 @@ export const createGroup = async (
   return data;
 };
 
+// Create a one-to-one conversation on demand
+export const createOneToOne = async (
+  userIds: string[]
+): Promise<CreateGroupResponse> => {
+  const { data } = await axios.post("/api/conversations", {
+    type: "one_to_one",
+    ids: userIds,
+  });
+  return data;
+};
+
 export const getMessages = async (
   conversationId: string
 ): Promise<GetMessagesResponse> => {

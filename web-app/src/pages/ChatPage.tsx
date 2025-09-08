@@ -29,7 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useSocket } from "@/hooks/useSocket";
-import { getMessages, getUsers, updateGroup } from "@/lib/api";
+import { createOneToOne, getMessages, getUsers, updateGroup } from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -47,7 +47,7 @@ import {
   Video,
 } from "lucide-react";
 import * as React from "react";
-import type { Message } from "../types";
+import type { Conversation, Message } from "../types";
 import { MESSAGE_READ_STATUS } from "../types";
 
 export default function ChatPage() {
@@ -57,9 +57,11 @@ export default function ChatPage() {
     setMessages,
     isLoadingMessages,
     setIsLoadingMessages,
+    setSelectedConversation,
   } = useChatStore();
   const { user } = useUser();
-  const { sendMessage: sendMessageSocket } = useSocket();
+  const { sendMessage: sendMessageSocket, createGroupSocketMessage } =
+    useSocket();
 
   // Message input state
   const [messageInput, setMessageInput] = React.useState("");
@@ -113,7 +115,7 @@ export default function ChatPage() {
       selectedConversation.users.length > 0
     ) {
       const otherUser = selectedConversation.users.find(
-        (u) => u.clerkId !== "current-user-id"
+        (u) => u.clerkId !== (user?.id || "")
       );
       return otherUser?.name || otherUser?.email || "Unknown";
     }
@@ -256,7 +258,7 @@ export default function ChatPage() {
           email: u.email,
         }));
         setAvailableUsers(options);
-      } catch (e) {
+      } catch {
         if (!cancelled) setAvailableUsers([]);
       }
     };
@@ -300,10 +302,12 @@ export default function ChatPage() {
 
     // Build optimistic conversation
     const prevConversation = selectedConversation;
-    const adminsOptimistic = Array.from(editAdmins).map((aid) => {
-      const found = editMembers.find((m) => m.clerkId === aid);
-      return { clerkId: aid, name: found?.name ?? null };
-    });
+    const adminsOptimistic = Array.from(editAdmins).map(
+      (aid): { clerkId: string; name: string | null } => {
+        const found = editMembers.find((m) => m.clerkId === aid);
+        return { clerkId: aid, name: found?.name ?? null };
+      }
+    );
     const usersOptimistic = editMembers.map((m) => {
       const existing = prevConversation.users.find(
         (u) => u.clerkId === m.clerkId
@@ -315,7 +319,6 @@ export default function ChatPage() {
             email: m.email ?? existing.email,
           }
         : ({
-            // minimal user object compatible with UI usage
             id: m.clerkId,
             clerkId: m.clerkId,
             name: m.name ?? null,
@@ -323,20 +326,22 @@ export default function ChatPage() {
             imageUrl: null,
             createdAt: new Date(),
             updatedAt: new Date(),
-          } as any);
+          } as unknown as Conversation["users"][number]);
     });
-    const optimisticConversation = {
+    const optimisticConversation: Conversation = {
       ...prevConversation,
       name: editName,
       description: editDescription,
-      users: usersOptimistic as any,
+      users: usersOptimistic as unknown as Conversation["users"],
       admins: adminsOptimistic,
     };
 
     // Apply optimistic update and close dialog immediately
-    (useChatStore.getState() as any).setSelectedConversation(
-      optimisticConversation
-    );
+    (
+      useChatStore.getState() as unknown as {
+        setSelectedConversation: (c: Conversation) => void;
+      }
+    ).setSelectedConversation(optimisticConversation);
     setIsEditDialogOpen(false);
 
     // Fire-and-forget server update, revert on error
@@ -351,12 +356,14 @@ export default function ChatPage() {
         addAdminIds,
         removeAdminIds,
       });
-    } catch (e) {
-      console.error("Failed to update group", e);
+    } catch (err) {
+      console.error("Failed to update group", err);
       // Revert UI to previous state on failure
-      (useChatStore.getState() as any).setSelectedConversation(
-        prevConversation
-      );
+      (
+        useChatStore.getState() as unknown as {
+          setSelectedConversation: (c: Conversation) => void;
+        }
+      ).setSelectedConversation(prevConversation);
     }
   };
 
@@ -366,38 +373,59 @@ export default function ChatPage() {
   };
 
   // Send message function
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation || !user) return;
 
     const messageContent = messageInput.trim();
-    const tempId = `temp-${Date.now()}`;
+    const isTemporary = selectedConversation.id.startsWith("temp-");
 
-    // Create optimistic message immediately
-    const optimisticMessage: Message = {
-      id: tempId,
-      content: messageContent,
-      type: "text",
-      files: [],
-      conversationId: selectedConversation.id,
-      senderId: user.id,
-      isRead: MESSAGE_READ_STATUS.UNREAD,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      sender: {
-        id: user.id,
-        clerkId: user.id,
-        name: user.fullName || user.firstName || "You",
-        email: user.primaryEmailAddress?.emailAddress || "",
-        imageUrl: user.imageUrl,
+    try {
+      let conversationIdForSend = selectedConversation.id;
+      // If temporary one-to-one, create conversation first via socket create:group flow
+      if (isTemporary) {
+        const other = selectedConversation.users.find(
+          (u) => u.clerkId !== user.id
+        );
+        if (!other) return;
+
+        // Create server-side conversation (one_to_one)
+        const created = await createOneToOne([user.id, other.clerkId]);
+        // Inform both clients via socket; provider marks initiator so only they auto-select
+        createGroupSocketMessage(
+          created.data as Conversation & { initiatorId?: string }
+        );
+        setSelectedConversation(created.data as Conversation);
+        conversationIdForSend = created.data.id;
+      }
+
+      // Build message and send via socket (after creation for first message)
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMessage: Message = {
+        id: tempId,
+        content: messageContent,
+        type: "text",
+        files: [],
+        conversationId: conversationIdForSend,
+        senderId: user.id,
+        isRead: MESSAGE_READ_STATUS.UNREAD,
         createdAt: new Date(),
         updatedAt: new Date(),
-      },
-    };
+        sender: {
+          id: user.id,
+          clerkId: user.id,
+          name: user.fullName || user.firstName || "You",
+          email: user.primaryEmailAddress?.emailAddress || "",
+          imageUrl: user.imageUrl,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      };
 
-    sendMessageSocket(optimisticMessage);
-
-    // Clear input immediately
-    setMessageInput("");
+      sendMessageSocket(optimisticMessage);
+      setMessageInput("");
+    } catch (err) {
+      console.error("Failed to send first message:", err);
+    }
   };
 
   // Handle Enter key press
@@ -440,6 +468,13 @@ export default function ChatPage() {
       ))}
     </div>
   );
+
+  // Determine whether to show loading UI
+  const shouldShowLoading = React.useMemo(() => {
+    if (!isLoadingMessages) return false;
+    // Do not show loading UI for one-to-one conversations (keep fetching silently)
+    return selectedConversation?.type !== "ONE_TO_ONE";
+  }, [isLoadingMessages, selectedConversation?.type]);
 
   return (
     <SidebarProvider
@@ -542,7 +577,7 @@ export default function ChatPage() {
           <ScrollArea ref={scrollAreaRef} className="h-full">
             <div className="p-4">
               {selectedConversation ? (
-                isLoadingMessages ? (
+                shouldShowLoading ? (
                   <MessageSkeleton />
                 ) : messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -968,7 +1003,7 @@ export default function ChatPage() {
               </div>
               <Tabs
                 value={editPanel}
-                onValueChange={(v) => setEditPanel(v as any)}
+                onValueChange={(v) => setEditPanel(v as typeof editPanel)}
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-3">

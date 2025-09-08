@@ -1,7 +1,6 @@
-import { Server } from "socket.io";
 import Redis from "ioredis";
+import { Server } from "socket.io";
 import { produceMessage } from "./kafka.js";
-
 
 const pub = new Redis({
   host: process.env.REDIS_HOST,
@@ -17,7 +16,6 @@ const sub = new Redis({
   password: process.env.REDIS_PASSWORD,
 });
 
-
 class SocketService {
   _io;
   constructor() {
@@ -27,7 +25,7 @@ class SocketService {
         allowedHeaders: ["*"],
       },
     });
-    
+
     sub.subscribe("MESSAGES");
   }
 
@@ -41,32 +39,32 @@ class SocketService {
       });
 
       socket.on("event:message", async (data) => {
-        console.log("A user sent a message with id : ", socket.id);
         await pub.publish("MESSAGES", JSON.stringify(data));
       });
 
       socket.on("create:group", (data) => {
-        console.log(data);
-        
-        io.to(data.users.map((user) => user.clerkId)).emit("create:group", data);
+        io.to(data.users.map((user) => user.clerkId)).emit(
+          "create:group",
+          data
+        );
       });
-
 
       socket.on("disconnect", () => {
         console.log("A user disconnected with id : ", socket.id);
       });
     });
-    sub.on("message",async(channel, data) => {
-      if(channel === "MESSAGES") {
+    sub.on("message", async (channel, data) => {
+      if (channel === "MESSAGES") {
         const data2 = JSON.parse(data);
         const users = data2.conversation?.users;
 
         if (users.length > 0) {
           users.forEach((user) => {
+            console.log("Sending message to user : ", user.clerkId);
             io.to(user.clerkId).emit("message", data2.message);
           });
         }
-        await produceMessage(JSON.stringify({message: data2.message}))
+        await produceMessage(JSON.stringify({ message: data2.message }));
       }
     });
   }
@@ -75,6 +73,5 @@ class SocketService {
     return this._io;
   }
 }
-
 
 export default SocketService;

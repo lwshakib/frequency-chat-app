@@ -1,7 +1,7 @@
 import { useUser } from "@clerk/clerk-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { io } from "socket.io-client";
-import type { Message } from "../types";
+import type { Conversation, Message } from "../types";
 import { useChatStore } from "./chat-context";
 import { SocketContext, type SocketContextType } from "./socket-context";
 
@@ -27,10 +27,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const createGroupSocketMessage = useCallback(
-    (data: any) => {
-      socket?.emit("create:group", data);
+    (data: Conversation & { initiatorId?: string }) => {
+      const enriched = { ...data, initiatorId: user?.id };
+      socket?.emit("create:group", enriched);
     },
-    [socket]
+    [socket, user?.id]
   );
 
   const onMessageRec = useCallback(
@@ -42,11 +43,17 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const onCreateGroup = useCallback(
-    (data: any) => {
-      setConversations([data, ...conversations]);
-      setSelectedConversation(data);
+    (data: Conversation & { initiatorId?: string }) => {
+      const conv = data as Conversation;
+      setConversations([conv, ...conversations]);
+      console.log(conv);
+
+      // Only the initiator auto-selects
+      if (data?.initiatorId && data.initiatorId === user?.id) {
+        setSelectedConversation(conv);
+      }
     },
-    [conversations, setConversations, setSelectedConversation]
+    [conversations, setConversations, setSelectedConversation, user?.id]
   );
 
   useEffect(() => {

@@ -50,22 +50,32 @@ export const getNotifications = async (req, res) => {
 };
 
 export const updateNotifications = async (req, res) => {
-  const { isOpened, ids } = req.body;
-  if (!isOpened || !ids) {
-    return res.status(400).json({ error: "isOpened and ids are required" });
+  const { userId } = req.body;
+  if (!userId) {
+    return res.status(400).json({ error: "userId is required" });
   }
 
   try {
-    const notification = await prisma.notifications.updateMany({
+    await prisma.notifications.updateMany({
       where: {
-        id: {
-          in: ids,
-        },
+        senderId: userId,
+        isOpened: false,
       },
       data: {
-        isOpened: isOpened !== undefined ? isOpened : true,
+        isOpened: true,
       },
     });
+
+    await prisma.message.updateMany({
+      where: {
+        
+        isRead: "UNREAD",
+      },
+      data: {
+        isRead: "READ",
+      },
+    });
+
     res.json({ message: "Notification updated successfully", notification });
   } catch (error) {
     console.error("Error updating notifications:", error);

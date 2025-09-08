@@ -314,27 +314,87 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </TabsList>
                 <TabsContent value="contact" className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="contact-name">Name</Label>
-                    <Input id="contact-name" placeholder="Enter contact name" />
+                    <Label>Find a user</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search users..."
+                        value={userSearch}
+                        onChange={(e) => setUserSearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    {userSearch && (
+                      <div className="max-h-60 overflow-y-auto border rounded-md">
+                        {availableUsers.map((u) => (
+                          <div
+                            key={u.clerkId}
+                            className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
+                            onClick={() => {
+                              if (!user) return;
+                              const tempId = `temp-${Date.now()}`;
+                              const tempConversation = {
+                                id: tempId,
+                                name: null,
+                                description: null,
+                                type: "ONE_TO_ONE" as any,
+                                users: [
+                                  {
+                                    id: user.id,
+                                    clerkId: user.id,
+                                    name:
+                                      user.fullName || user.firstName || null,
+                                    email:
+                                      user.emailAddresses?.[0]?.emailAddress ||
+                                      "",
+                                    imageUrl: user.imageUrl || null,
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                  },
+                                  {
+                                    id: u.clerkId,
+                                    clerkId: u.clerkId,
+                                    name: u.name,
+                                    email: u.email,
+                                    imageUrl: null,
+                                    createdAt: new Date(),
+                                    updatedAt: new Date(),
+                                  },
+                                ],
+                                admins: [],
+                                messages: [],
+                                notifications: [],
+                                lastMessageId: null,
+                                lastMessage: null,
+                                createdAt: new Date(),
+                                updatedAt: new Date(),
+                              } as unknown as Conversation;
+                              setSelectedConversation(tempConversation);
+                              setIsDialogOpen(false);
+                            }}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                                <span className="text-xs text-white font-medium">
+                                  {u.name?.charAt(0)?.toUpperCase() ||
+                                    u.email?.charAt(0)?.toUpperCase() ||
+                                    "U"}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {u.name || u.email}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {u.email}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-email">Email</Label>
-                    <Input
-                      id="contact-email"
-                      type="email"
-                      placeholder="Enter email address"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contact-phone">Phone</Label>
-                    <Input
-                      id="contact-phone"
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <Button className="w-full cursor-pointer">
-                    Create Contact
-                  </Button>
                 </TabsContent>
                 <TabsContent value="group" className="space-y-4 mt-4">
                   <div className="space-y-2">
@@ -487,7 +547,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 conversations.map((conversation) => {
                   // Get other users (excluding current user)
                   const otherUsers = conversation.users.filter(
-                    (user) => user.clerkId !== user?.id
+                    (u) => u.clerkId !== (user?.id || "")
                   );
 
                   // Generate initials for display
