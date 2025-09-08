@@ -35,6 +35,17 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket, user?.id]
   );
 
+  const emitDeleteConversation = useCallback(
+    (conversation: Conversation) => {
+      const memberIds = conversation.users.map((u) => u.clerkId);
+      socket?.emit("delete:conversation", {
+        conversationId: conversation.id,
+        memberIds,
+      });
+    },
+    [socket]
+  );
+
   const onMessageRec = useCallback(
     (msg: Message) => {
       console.log(msg);
@@ -130,6 +141,22 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     _socket.emit("join:server", user?.id);
     _socket.on("message", onMessageRec);
     _socket.on("create:group", onCreateGroup);
+    _socket.on("delete:conversation", (payload: { conversationId: string }) => {
+      const { conversationId } = payload;
+      const state = useChatStore.getState() as unknown as {
+        conversations: Conversation[];
+        setConversations: (c: Conversation[]) => void;
+        selectedConversation: Conversation | null;
+        setSelectedConversation: (c: Conversation | null) => void;
+      };
+      const remaining = state.conversations.filter(
+        (c) => c.id !== conversationId
+      );
+      state.setConversations(remaining);
+      if (state.selectedConversation?.id === conversationId) {
+        state.setSelectedConversation(null);
+      }
+    });
     _socket.on(
       "typing:start",
       (payload: { conversationId: string; fromClerkId: string }) => {
@@ -169,6 +196,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         createGroupSocketMessage,
         emitTypingStart,
         emitTypingStop,
+        emitDeleteConversation,
       }}
     >
       {children}

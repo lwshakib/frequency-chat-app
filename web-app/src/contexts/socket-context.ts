@@ -10,6 +10,7 @@ export interface SocketContextType {
   ) => void;
   emitTypingStart: (conversation: Conversation, fromClerkId: string) => void;
   emitTypingStop: (conversation: Conversation, fromClerkId: string) => void;
+  emitDeleteConversation: (conversation: Conversation) => void;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(

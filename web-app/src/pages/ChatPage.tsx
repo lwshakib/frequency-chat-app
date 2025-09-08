@@ -30,7 +30,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
 import { useSocket } from "@/hooks/useSocket";
-import { createOneToOne, getMessages, getUsers, updateGroup } from "@/lib/api";
+import {
+  createOneToOne,
+  deleteConversation,
+  getMessages,
+  getUsers,
+  updateGroup,
+} from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -67,6 +73,7 @@ export default function ChatPage() {
     createGroupSocketMessage,
     emitTypingStart,
     emitTypingStop,
+    emitDeleteConversation,
   } = useSocket();
 
   // Message input state
@@ -600,7 +607,34 @@ export default function ChatPage() {
                     {selectedConversation.type === "ONE_TO_ONE" && (
                       <DropdownMenuItem>Block User</DropdownMenuItem>
                     )}
-                    <DropdownMenuItem className="text-red-600">
+                    <DropdownMenuItem
+                      className="text-red-600"
+                      onClick={async () => {
+                        if (!selectedConversation || !user) return;
+                        try {
+                          await deleteConversation(
+                            selectedConversation.id,
+                            user.id
+                          );
+                          const state = useChatStore.getState() as unknown as {
+                            conversations: Conversation[];
+                            setConversations: (c: Conversation[]) => void;
+                            setSelectedConversation: (
+                              c: Conversation | null
+                            ) => void;
+                          };
+                          state.setConversations(
+                            state.conversations.filter(
+                              (c) => c.id !== selectedConversation.id
+                            )
+                          );
+                          state.setSelectedConversation(null);
+                          emitDeleteConversation(selectedConversation);
+                        } catch (e) {
+                          console.error("Failed to delete conversation", e);
+                        }
+                      }}
+                    >
                       Delete Chat
                     </DropdownMenuItem>
                   </DropdownMenuContent>

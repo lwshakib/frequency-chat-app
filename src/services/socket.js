@@ -49,6 +49,14 @@ class SocketService {
         );
       });
 
+      socket.on("delete:conversation", (payload) => {
+        try {
+          const { conversationId, memberIds } = payload || {};
+          if (!conversationId || !Array.isArray(memberIds)) return;
+          io.to(memberIds).emit("delete:conversation", { conversationId });
+        } catch {}
+      });
+
       // Typing indicators
       socket.on("typing:start", (payload) => {
         try {

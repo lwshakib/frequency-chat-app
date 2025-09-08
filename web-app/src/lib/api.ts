@@ -99,3 +99,13 @@ export const createMessage = async (
   );
   return data;
 };
+
+export const deleteConversation = async (
+  conversationId: string,
+  requesterId: string
+) => {
+  const { data } = await axios.delete(`/api/conversations/${conversationId}`, {
+    data: { requesterId },
+  });
+  return data;
+};
