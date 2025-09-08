@@ -1005,7 +1005,9 @@ export default function ChatPage() {
                   <Input
                     placeholder="Search members..."
                     value={memberSearchTerm}
-                    onChange={(e) => setMemberSearchTerm(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setMemberSearchTerm(e.target.value)
+                    }
                     className="pl-10"
                   />
                 </div>
@@ -1013,86 +1015,109 @@ export default function ChatPage() {
                 {/* Members List */}
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {selectedConversation.users
-                    .filter((member) => {
+                    .filter(
+                      (member: { name: string | null; email: string }) => {
+                        if (!memberSearchTerm) return true;
+                        const searchLower = memberSearchTerm.toLowerCase();
+                        return (
+                          member.name?.toLowerCase().includes(searchLower) ||
+                          member.email.toLowerCase().includes(searchLower)
+                        );
+                      }
+                    )
+                    .sort(
+                      (
+                        a: {
+                          name: string | null;
+                          email: string;
+                          clerkId: string;
+                        },
+                        b: {
+                          name: string | null;
+                          email: string;
+                          clerkId: string;
+                        }
+                      ) => {
+                        const aIsAdmin = selectedConversation.admins?.some(
+                          (admin) => admin.clerkId === a.clerkId
+                        );
+                        const bIsAdmin = selectedConversation.admins?.some(
+                          (admin) => admin.clerkId === b.clerkId
+                        );
+
+                        // Admins first, then regular members
+                        if (aIsAdmin && !bIsAdmin) return -1;
+                        if (!aIsAdmin && bIsAdmin) return 1;
+
+                        // Within same role, sort alphabetically by name
+                        const aName = a.name || a.email || "";
+                        const bName = b.name || b.email || "";
+                        return aName.localeCompare(bName);
+                      }
+                    )
+                    .map(
+                      (member: {
+                        clerkId: string;
+                        name: string | null;
+                        email: string;
+                      }) => {
+                        const isAdmin = selectedConversation.admins?.some(
+                          (admin) => admin.clerkId === member.clerkId
+                        );
+                        const isCurrentUser = member.clerkId === user?.id;
+
+                        return (
+                          <div
+                            key={member.clerkId}
+                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-10 h-10 rounded-full ${getAvatarColor(
+                                  member.clerkId
+                                )} flex items-center justify-center`}
+                              >
+                                <span className="text-sm text-white font-medium">
+                                  {getInitials(member.name || member.email)}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">
+                                    {member.name || "Unknown"}
+                                    {isCurrentUser && (
+                                      <span className="text-xs text-muted-foreground ml-1">
+                                        (You)
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {member.email}
+                                </p>
+                              </div>
+                            </div>
+                            {isAdmin && (
+                              <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full font-medium">
+                                Admin
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                    )}
+
+                  {/* No results message */}
+                  {selectedConversation.users.filter(
+                    (member: { name: string | null; email: string }) => {
                       if (!memberSearchTerm) return true;
                       const searchLower = memberSearchTerm.toLowerCase();
                       return (
                         member.name?.toLowerCase().includes(searchLower) ||
                         member.email.toLowerCase().includes(searchLower)
                       );
-                    })
-                    .sort((a, b) => {
-                      const aIsAdmin = selectedConversation.admins?.some(
-                        (admin) => admin.clerkId === a.clerkId
-                      );
-                      const bIsAdmin = selectedConversation.admins?.some(
-                        (admin) => admin.clerkId === b.clerkId
-                      );
-
-                      // Admins first, then regular members
-                      if (aIsAdmin && !bIsAdmin) return -1;
-                      if (!aIsAdmin && bIsAdmin) return 1;
-
-                      // Within same role, sort alphabetically by name
-                      const aName = a.name || a.email || "";
-                      const bName = b.name || b.email || "";
-                      return aName.localeCompare(bName);
-                    })
-                    .map((member) => {
-                      const isAdmin = selectedConversation.admins?.some(
-                        (admin) => admin.clerkId === member.clerkId
-                      );
-                      const isCurrentUser = member.clerkId === user?.id;
-
-                      return (
-                        <div
-                          key={member.clerkId}
-                          className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className={`w-10 h-10 rounded-full ${getAvatarColor(
-                                member.clerkId
-                              )} flex items-center justify-center`}
-                            >
-                              <span className="text-sm text-white font-medium">
-                                {getInitials(member.name || member.email)}
-                              </span>
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium">
-                                  {member.name || "Unknown"}
-                                  {isCurrentUser && (
-                                    <span className="text-xs text-muted-foreground ml-1">
-                                      (You)
-                                    </span>
-                                  )}
-                                </p>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                {member.email}
-                              </p>
-                            </div>
-                          </div>
-                          {isAdmin && (
-                            <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full font-medium">
-                              Admin
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-
-                  {/* No results message */}
-                  {selectedConversation.users.filter((member) => {
-                    if (!memberSearchTerm) return true;
-                    const searchLower = memberSearchTerm.toLowerCase();
-                    return (
-                      member.name?.toLowerCase().includes(searchLower) ||
-                      member.email.toLowerCase().includes(searchLower)
-                    );
-                  }).length === 0 &&
+                    }
+                  ).length === 0 &&
                     memberSearchTerm && (
                       <div className="text-center py-8 text-muted-foreground">
                         <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -1118,7 +1143,9 @@ export default function ChatPage() {
                 <label className="text-sm font-medium">Group Name</label>
                 <Input
                   value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditName(e.target.value)
+                  }
                   placeholder="Enter group name"
                 />
               </div>
@@ -1126,13 +1153,17 @@ export default function ChatPage() {
                 <label className="text-sm font-medium">Description</label>
                 <Input
                   value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditDescription(e.target.value)
+                  }
                   placeholder="Enter description"
                 />
               </div>
               <Tabs
                 value={editPanel}
-                onValueChange={(v) => setEditPanel(v as typeof editPanel)}
+                onValueChange={(v: string) =>
+                  setEditPanel(v as typeof editPanel)
+                }
                 className="w-full"
               >
                 <TabsList className="grid w-full grid-cols-3">
@@ -1149,7 +1180,9 @@ export default function ChatPage() {
                         className="pl-10"
                         placeholder="Search users..."
                         value={addMemberSearch}
-                        onChange={(e) => setAddMemberSearch(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAddMemberSearch(e.target.value)
+                        }
                       />
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-1 border rounded-md p-1">
@@ -1158,38 +1191,44 @@ export default function ChatPage() {
                           No users
                         </div>
                       ) : (
-                        availableUsers.map((u) => {
-                          const isMember = editMembers.some(
-                            (m) => m.clerkId === u.clerkId
-                          );
-                          return (
-                            <div
-                              key={u.clerkId}
-                              className="flex items-center justify-between p-2 rounded hover:bg-muted"
-                            >
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {u.name || u.email}
+                        availableUsers.map(
+                          (u: {
+                            clerkId: string;
+                            name: string | null;
+                            email: string;
+                          }) => {
+                            const isMember = editMembers.some(
+                              (m) => m.clerkId === u.clerkId
+                            );
+                            return (
+                              <div
+                                key={u.clerkId}
+                                className="flex items-center justify-between p-2 rounded hover:bg-muted"
+                              >
+                                <div>
+                                  <div className="text-sm font-medium">
+                                    {u.name || u.email}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {u.clerkId}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {u.clerkId}
-                                </div>
+                                {isMember ? (
+                                  <Button size="sm" variant="outline" disabled>
+                                    Added
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => addMemberFromPicker(u)}
+                                  >
+                                    Add
+                                  </Button>
+                                )}
                               </div>
-                              {isMember ? (
-                                <Button size="sm" variant="outline" disabled>
-                                  Added
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  onClick={() => addMemberFromPicker(u)}
-                                >
-                                  Add
-                                </Button>
-                              )}
-                            </div>
-                          );
-                        })
+                            );
+                          }
+                        )
                       )}
                     </div>
                   </div>
@@ -1208,57 +1247,69 @@ export default function ChatPage() {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-2">
                       {editMembers
-                        .filter((m) => {
-                          if (!adminsSearch) return true;
-                          const s = adminsSearch.toLowerCase();
-                          return (
-                            (m.name || "").toLowerCase().includes(s) ||
-                            (m.email || "").toLowerCase().includes(s) ||
-                            m.clerkId.toLowerCase().includes(s)
-                          );
-                        })
-                        .map((m) => {
-                          const isAdmin = editAdmins.has(m.clerkId);
-                          const isSelf = m.clerkId === user?.id;
-                          const numAdmins = editAdmins.size;
-                          return (
-                            <div
-                              key={m.clerkId}
-                              className="flex items-center justify-between p-2 rounded border"
-                            >
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {m.name || m.email || m.clerkId}{" "}
-                                  {isSelf && (
-                                    <span className="text-xs text-muted-foreground">
-                                      (You)
-                                    </span>
-                                  )}
+                        .filter(
+                          (m: {
+                            clerkId: string;
+                            name?: string | null;
+                            email?: string;
+                          }) => {
+                            if (!adminsSearch) return true;
+                            const s = adminsSearch.toLowerCase();
+                            return (
+                              (m.name || "").toLowerCase().includes(s) ||
+                              (m.email || "").toLowerCase().includes(s) ||
+                              m.clerkId.toLowerCase().includes(s)
+                            );
+                          }
+                        )
+                        .map(
+                          (m: {
+                            clerkId: string;
+                            name?: string | null;
+                            email?: string;
+                          }) => {
+                            const isAdmin = editAdmins.has(m.clerkId);
+                            const isSelf = m.clerkId === user?.id;
+                            const numAdmins = editAdmins.size;
+                            return (
+                              <div
+                                key={m.clerkId}
+                                className="flex items-center justify-between p-2 rounded border"
+                              >
+                                <div>
+                                  <div className="text-sm font-medium">
+                                    {m.name || m.email || m.clerkId}{" "}
+                                    {isSelf && (
+                                      <span className="text-xs text-muted-foreground">
+                                        (You)
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {m.clerkId}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {m.clerkId}
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    variant={isAdmin ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => toggleAdmin(m.clerkId)}
+                                    disabled={
+                                      isSelf && isAdmin && numAdmins === 1
+                                    }
+                                    title={
+                                      isSelf && isAdmin && numAdmins === 1
+                                        ? "Assign another admin before removing yourself"
+                                        : undefined
+                                    }
+                                  >
+                                    {isAdmin ? "Admin" : "Make Admin"}
+                                  </Button>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant={isAdmin ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => toggleAdmin(m.clerkId)}
-                                  disabled={
-                                    isSelf && isAdmin && numAdmins === 1
-                                  }
-                                  title={
-                                    isSelf && isAdmin && numAdmins === 1
-                                      ? "Assign another admin before removing yourself"
-                                      : undefined
-                                  }
-                                >
-                                  {isAdmin ? "Admin" : "Make Admin"}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
+                            );
+                          }
+                        )}
                     </div>
                   </div>
                 </TabsContent>
@@ -1276,51 +1327,63 @@ export default function ChatPage() {
                     </div>
                     <div className="max-h-60 overflow-y-auto space-y-2">
                       {editMembers
-                        .filter((m) => {
-                          if (!removeSearch) return true;
-                          const s = removeSearch.toLowerCase();
-                          return (
-                            (m.name || "").toLowerCase().includes(s) ||
-                            (m.email || "").toLowerCase().includes(s) ||
-                            m.clerkId.toLowerCase().includes(s)
-                          );
-                        })
-                        .map((m) => {
-                          const isSelf = m.clerkId === user?.id;
-                          const isAdmin = editAdmins.has(m.clerkId);
-                          const numAdmins = editAdmins.size;
-                          const disableRemove =
-                            isSelf || (isAdmin && numAdmins === 1);
-                          const title = isSelf
-                            ? "You cannot remove yourself"
-                            : isAdmin && numAdmins === 1
-                            ? "Assign another admin before removing the last admin"
-                            : undefined;
-                          return (
-                            <div
-                              key={m.clerkId}
-                              className="flex items-center justify-between p-2 rounded border"
-                            >
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {m.name || m.email || m.clerkId}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {m.clerkId}
-                                </div>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled={disableRemove}
-                                title={title}
-                                onClick={() => removeMember(m.clerkId)}
+                        .filter(
+                          (m: {
+                            clerkId: string;
+                            name?: string | null;
+                            email?: string;
+                          }) => {
+                            if (!removeSearch) return true;
+                            const s = removeSearch.toLowerCase();
+                            return (
+                              (m.name || "").toLowerCase().includes(s) ||
+                              (m.email || "").toLowerCase().includes(s) ||
+                              m.clerkId.toLowerCase().includes(s)
+                            );
+                          }
+                        )
+                        .map(
+                          (m: {
+                            clerkId: string;
+                            name?: string | null;
+                            email?: string;
+                          }) => {
+                            const isSelf = m.clerkId === user?.id;
+                            const isAdmin = editAdmins.has(m.clerkId);
+                            const numAdmins = editAdmins.size;
+                            const disableRemove =
+                              isSelf || (isAdmin && numAdmins === 1);
+                            const title = isSelf
+                              ? "You cannot remove yourself"
+                              : isAdmin && numAdmins === 1
+                              ? "Assign another admin before removing the last admin"
+                              : undefined;
+                            return (
+                              <div
+                                key={m.clerkId}
+                                className="flex items-center justify-between p-2 rounded border"
                               >
-                                Remove
-                              </Button>
-                            </div>
-                          );
-                        })}
+                                <div>
+                                  <div className="text-sm font-medium">
+                                    {m.name || m.email || m.clerkId}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {m.clerkId}
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={disableRemove}
+                                  title={title}
+                                  onClick={() => removeMember(m.clerkId)}
+                                >
+                                  Remove
+                                </Button>
+                              </div>
+                            );
+                          }
+                        )}
                     </div>
                   </div>
                 </TabsContent>
