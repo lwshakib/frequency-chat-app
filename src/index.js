@@ -79,10 +79,10 @@ socketService.initListeners();
 app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "web", "dist")));
+  app.use(express.static(path.join(__dirname, "web-app", "dist")));
 
   app.get("/*splat", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "web", "dist", "index.html"));
+    res.sendFile(path.resolve(__dirname, "web-app", "dist", "index.html"));
   });
 } else {
   app.get("/", (req, res) => {
