@@ -3,13 +3,9 @@ import ChatHeader from "@/components/chat/ChatHeader";
 import EditGroupDialog from "@/components/chat/EditGroupDialog";
 import GroupDetailsDialog from "@/components/chat/GroupDetailsDialog";
 import MessageInput from "@/components/chat/MessageInput";
-import MessageSkeleton from "@/components/chat/MessageSkeleton";
-import MessagesList from "@/components/chat/MessagesList";
+import MessagesArea from "@/components/chat/MessagesArea";
 import ProfileDialog from "@/components/chat/ProfileDialog";
 import TypingIndicator from "@/components/chat/TypingIndicator";
-// ui button not used in this file after refactor
-// ui input not used in this file after refactor
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarInset,
   SidebarProvider,
@@ -26,9 +22,13 @@ import {
   getUsers,
   updateGroup,
 } from "@/lib/api";
+import {
+  getAvatarColor,
+  getDisplayDescription,
+  getDisplayName,
+  getInitials,
+} from "@/lib/chat-helpers";
 import { useUser } from "@clerk/clerk-react";
-import { formatDistanceToNow } from "date-fns";
-import { Phone, Users, Video } from "lucide-react";
 import * as React from "react";
 import type { Conversation, Message } from "../types";
 import { MESSAGE_READ_STATUS } from "../types";
@@ -81,7 +81,7 @@ export default function ChatPage() {
   const originalMembersRef = React.useRef<string[]>([]);
 
   // Ref for scroll area
-  const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
 
   // Scroll to bottom function
   const scrollToBottom = () => {
@@ -98,59 +98,7 @@ export default function ChatPage() {
     }
   };
 
-  // Helper functions
-  const getDisplayName = () => {
-    if (!selectedConversation) return "Select a conversation";
-    if (selectedConversation.name) return selectedConversation.name;
-    if (
-      selectedConversation.type === "ONE_TO_ONE" &&
-      selectedConversation.users.length > 0
-    ) {
-      const otherUser = selectedConversation.users.find(
-        (u) => u.clerkId !== (user?.id || "")
-      );
-      return otherUser?.name || otherUser?.email || "Unknown";
-    }
-    return "Unknown";
-  };
-
-  const getDisplayDescription = () => {
-    if (!selectedConversation) return "Choose a conversation to start chatting";
-    if (selectedConversation.description)
-      return selectedConversation.description;
-    if (selectedConversation.type === "GROUP") {
-      return `${selectedConversation.users.length} members`;
-    }
-    return selectedConversation.type === "ONE_TO_ONE"
-      ? "Direct message"
-      : "Group chat";
-  };
-
-  const getInitials = (name: string) => {
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getAvatarColor = (id: string) => {
-    const colors = [
-      "bg-indigo-500",
-      "bg-pink-500",
-      "bg-teal-500",
-      "bg-blue-500",
-      "bg-green-500",
-      "bg-orange-500",
-      "bg-purple-500",
-      "bg-red-500",
-      "bg-yellow-500",
-      "bg-cyan-500",
-    ];
-    const colorIndex = id.charCodeAt(0) % colors.length;
-    return colors[colorIndex];
-  };
+  // Helper selectors via shared helpers
 
   // Fetch messages when conversation changes
   React.useEffect(() => {
@@ -182,10 +130,7 @@ export default function ChatPage() {
     }
   }, [messages, isLoadingMessages]);
 
-  // Format message time
-  const formatMessageTime = (date: Date) => {
-    return formatDistanceToNow(new Date(date), { addSuffix: true });
-  };
+  // Format handled inside MessagesArea via helpers
 
   // Helpers for admin checks
   const currentUserIsAdmin = React.useMemo(() => {
@@ -464,14 +409,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  // Message skeleton extracted to component
-
-  // Determine whether to show loading UI
-  const shouldShowLoading = React.useMemo(() => {
-    if (!isLoadingMessages) return false;
-    // Do not show loading UI for one-to-one conversations (keep fetching silently)
-    return selectedConversation?.type !== "ONE_TO_ONE";
-  }, [isLoadingMessages, selectedConversation?.type]);
+  // Messages area loading handled inside MessagesArea
 
   return (
     <SidebarProvider
@@ -487,10 +425,12 @@ export default function ChatPage() {
       <SidebarInset className="flex flex-col">
         {selectedConversation && (
           <ChatHeader
-            title={getDisplayName()}
-            description={getDisplayDescription()}
+            title={getDisplayName(selectedConversation, user?.id)}
+            description={getDisplayDescription(selectedConversation)}
             avatarColorClass={getAvatarColor(selectedConversation.id)}
-            initials={getInitials(getDisplayName())}
+            initials={getInitials(
+              getDisplayName(selectedConversation, user?.id)
+            )}
             isGroup={selectedConversation.type === "GROUP"}
             currentUserIsAdmin={currentUserIsAdmin}
             onOpenMembers={() => setIsMembersDialogOpen(true)}
@@ -526,126 +466,15 @@ export default function ChatPage() {
         )}
 
         {/* Chat Messages Area - Takes remaining space */}
-        <div className="flex-1 min-h-0">
-          <ScrollArea ref={scrollAreaRef} className="h-full">
-            <div className="p-4">
-              {selectedConversation ? (
-                shouldShowLoading ? (
-                  <MessageSkeleton />
-                ) : messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <div className="text-center">
-                      <div
-                        className={`w-16 h-16 rounded-full ${getAvatarColor(
-                          selectedConversation.id
-                        )} flex items-center justify-center mx-auto mb-4`}
-                      >
-                        <span className="text-2xl text-white font-medium">
-                          {getInitials(getDisplayName())}
-                        </span>
-                      </div>
-                      <h3 className="text-lg font-medium mb-2">
-                        {getDisplayName()}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {getDisplayDescription()}
-                      </p>
-                      <p className="text-sm">
-                        Start typing to send a message...
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <MessagesList
-                    messages={messages}
-                    isCurrentUser={isCurrentUser}
-                    getAvatarColor={getAvatarColor}
-                    getInitials={getInitials}
-                    formatMessageTime={formatMessageTime}
-                  />
-                )
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  <div className="text-center max-w-md">
-                    <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                      <img
-                        src={
-                          resolvedTheme === "dark"
-                            ? "/dark_logo.svg"
-                            : "/light_logo.svg"
-                        }
-                        alt="Frequency Logo"
-                        className="h-20 w-20 object-contain"
-                      />
-                    </div>
-                    <h3 className="text-2xl font-bold mb-4 text-foreground">
-                      Welcome to Frequency
-                    </h3>
-                    <p className="text-base mb-6 text-muted-foreground">
-                      Your modern, real-time chat application for seamless
-                      communication
-                    </p>
-
-                    <div className="space-y-4 text-left">
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 mt-1">
-                          <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-foreground mb-1">
-                            Create Groups
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            Start group conversations with multiple people and
-                            collaborate effectively
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center flex-shrink-0 mt-1">
-                          <Phone className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-foreground mb-1">
-                            Real-time Messaging
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            Send instant messages with real-time updates and
-                            notifications
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center flex-shrink-0 mt-1">
-                          <Video className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-foreground mb-1">
-                            Rich Media
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            Share photos, files, and emojis to express yourself
-                            better
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-                      <p className="text-sm text-muted-foreground">
-                        <strong>Getting Started:</strong> Select a conversation
-                        from the sidebar or create a new group to start
-                        chatting!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+        <MessagesArea
+          resolvedTheme={resolvedTheme}
+          conversation={selectedConversation || null}
+          messages={messages}
+          isLoading={isLoadingMessages}
+          isOneToOne={selectedConversation?.type === "ONE_TO_ONE"}
+          isCurrentUser={isCurrentUser}
+          scrollAreaRef={scrollAreaRef}
+        />
 
         {/* Chat Input Area - Only show when conversation is selected */}
         {selectedConversation && (
