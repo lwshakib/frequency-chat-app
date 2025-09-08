@@ -104,6 +104,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     fetchUsers(userSearch);
   }, [userSearch]);
 
+  React.useEffect(() => {
+    if (isDialogOpen) {
+      fetchUsers(userSearch);
+    }
+  }, [isDialogOpen]);
+
   const handleCreateGroup = async () => {
     if (!user || !groupName.trim() || selectedUsers.length === 0) return;
 
@@ -261,9 +267,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                         className="pl-10"
                       />
                     </div>
-                    {userSearch && (
-                      <div className="max-h-60 overflow-y-auto border rounded-md">
-                        {availableUsers.map((u) => (
+                    <div className="max-h-60 overflow-y-auto border rounded-md">
+                      {availableUsers
+                        .filter((u) => {
+                          if (!userSearch) return true;
+                          const s = userSearch.toLowerCase();
+                          return (
+                            (u.name || "").toLowerCase().includes(s) ||
+                            (u.email || "").toLowerCase().includes(s)
+                          );
+                        })
+                        .map((u) => (
                           <div
                             key={u.clerkId}
                             className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
@@ -328,8 +342,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             </div>
                           </div>
                         ))}
-                      </div>
-                    )}
+                      {availableUsers.length === 0 && (
+                        <div className="text-center text-sm text-muted-foreground py-4">
+                          No users
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </TabsContent>
                 <TabsContent value="group" className="space-y-4 mt-4">
@@ -368,42 +386,56 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </div>
 
                     {/* Search Results */}
-                    {userSearch && (
-                      <div className="max-h-32 overflow-y-auto border rounded-md">
-                        {availableUsers
-                          .filter(
-                            (u) =>
-                              !selectedUsers.find(
-                                (su) => su.clerkId === u.clerkId
-                              )
-                          )
-                          .map((user) => (
-                            <div
-                              key={user.clerkId}
-                              className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
-                              onClick={() => addUser(user)}
-                            >
-                              <div className="flex items-center space-x-2">
-                                <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
-                                  <span className="text-xs text-white font-medium">
-                                    {user.name?.charAt(0)?.toUpperCase() ||
-                                      user.email?.charAt(0)?.toUpperCase() ||
-                                      "U"}
-                                  </span>
-                                </div>
-                                <div>
-                                  <p className="text-sm font-medium">
-                                    {user.name || "Unknown"}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {user.email}
-                                  </p>
-                                </div>
+                    <div className="max-h-32 overflow-y-auto border rounded-md">
+                      {availableUsers
+                        .filter(
+                          (u) =>
+                            !selectedUsers.find(
+                              (su) => su.clerkId === u.clerkId
+                            )
+                        )
+                        .filter((u) => {
+                          if (!userSearch) return true;
+                          const s = userSearch.toLowerCase();
+                          return (
+                            (u.name || "").toLowerCase().includes(s) ||
+                            (u.email || "").toLowerCase().includes(s)
+                          );
+                        })
+                        .map((user) => (
+                          <div
+                            key={user.clerkId}
+                            className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
+                            onClick={() => addUser(user)}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">
+                                <span className="text-xs text-white font-medium">
+                                  {user.name?.charAt(0)?.toUpperCase() ||
+                                    user.email?.charAt(0)?.toUpperCase() ||
+                                    "U"}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {user.name || "Unknown"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {user.email}
+                                </p>
                               </div>
                             </div>
-                          ))}
-                      </div>
-                    )}
+                          </div>
+                        ))}
+                      {availableUsers.filter(
+                        (u) =>
+                          !selectedUsers.find((su) => su.clerkId === u.clerkId)
+                      ).length === 0 && (
+                        <div className="text-center text-sm text-muted-foreground py-3">
+                          No users
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Selected Users */}
