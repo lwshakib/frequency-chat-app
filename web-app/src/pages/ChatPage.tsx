@@ -28,6 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useChatStore } from "@/contexts/chat-context";
+import { useTheme } from "@/hooks/use-theme";
 import { useSocket } from "@/hooks/useSocket";
 import { createOneToOne, getMessages, getUsers, updateGroup } from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
@@ -51,6 +52,7 @@ import type { Conversation, Message } from "../types";
 import { MESSAGE_READ_STATUS } from "../types";
 
 export default function ChatPage() {
+  const { resolvedTheme } = useTheme();
   const {
     selectedConversation,
     messages,
@@ -702,8 +704,16 @@ export default function ChatPage() {
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   <div className="text-center max-w-md">
-                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
-                      <span className="text-3xl font-bold text-white">F</span>
+                    <div className="w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+                      <img
+                        src={
+                          resolvedTheme === "dark"
+                            ? "/dark_logo.svg"
+                            : "/light_logo.svg"
+                        }
+                        alt="Frequency Logo"
+                        className="h-20 w-20 object-contain"
+                      />
                     </div>
                     <h3 className="text-2xl font-bold mb-4 text-foreground">
                       Welcome to Frequency
