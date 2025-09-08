@@ -1,24 +1,21 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import ChatHeader from "@/components/chat/ChatHeader";
+import EditGroupDialog from "@/components/chat/EditGroupDialog";
+import GroupDetailsDialog from "@/components/chat/GroupDetailsDialog";
 import MessageInput from "@/components/chat/MessageInput";
 import MessageSkeleton from "@/components/chat/MessageSkeleton";
 import MessagesList from "@/components/chat/MessagesList";
+import ProfileDialog from "@/components/chat/ProfileDialog";
 import TypingIndicator from "@/components/chat/TypingIndicator";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+// ui button not used in this file after refactor
+// ui input not used in this file after refactor
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// tabs moved into EditGroupDialog component
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
 import { useSocket } from "@/hooks/useSocket";
@@ -31,7 +28,7 @@ import {
 } from "@/lib/api";
 import { useUser } from "@clerk/clerk-react";
 import { formatDistanceToNow } from "date-fns";
-import { Phone, Search, Users, Video } from "lucide-react";
+import { Phone, Users, Video } from "lucide-react";
 import * as React from "react";
 import type { Conversation, Message } from "../types";
 import { MESSAGE_READ_STATUS } from "../types";
@@ -665,475 +662,50 @@ export default function ChatPage() {
         )}
       </SidebarInset>
 
-      {/* One-to-one Profile Dialog */}
-      <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Profile</DialogTitle>
-          </DialogHeader>
-          {selectedConversation &&
-            selectedConversation.type === "ONE_TO_ONE" && (
-              <div className="space-y-4">
-                {(() => {
-                  const other = selectedConversation.users.find(
-                    (u) => u.clerkId !== (user?.id || "")
-                  );
-                  if (!other) return null;
-                  return (
-                    <div className="flex items-start gap-4">
-                      <div
-                        className={`w-12 h-12 rounded-full ${getAvatarColor(
-                          other.clerkId
-                        )} flex items-center justify-center text-white font-medium`}
-                      >
-                        {getInitials(other.name || other.email)}
-                      </div>
-                      <div className="space-y-1">
-                        <div className="text-base font-semibold">
-                          {other.name || other.email}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {other.email}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-        </DialogContent>
-      </Dialog>
+      <ProfileDialog
+        open={isProfileDialogOpen}
+        onOpenChange={setIsProfileDialogOpen}
+        conversation={selectedConversation || null}
+        currentUserId={user?.id}
+        getAvatarColor={getAvatarColor}
+        getInitials={getInitials}
+      />
 
-      {/* Group Details Dialog */}
-      <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Group Details
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {selectedConversation && (
-              <>
-                {/* Group Info */}
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <h3 className="font-medium text-lg">
-                    {selectedConversation.name}
-                  </h3>
-                  {selectedConversation.description && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {selectedConversation.description}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground mt-2">
-                    {selectedConversation.users.length} members
-                  </p>
-                </div>
+      <GroupDetailsDialog
+        open={isMembersDialogOpen}
+        onOpenChange={setIsMembersDialogOpen}
+        conversation={selectedConversation || null}
+        memberSearchTerm={memberSearchTerm}
+        setMemberSearchTerm={setMemberSearchTerm}
+        getAvatarColor={getAvatarColor}
+        getInitials={getInitials}
+        currentUserId={user?.id}
+      />
 
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search members..."
-                    value={memberSearchTerm}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setMemberSearchTerm(e.target.value)
-                    }
-                    className="pl-10"
-                  />
-                </div>
-
-                {/* Members List */}
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {selectedConversation.users
-                    .filter(
-                      (member: { name: string | null; email: string }) => {
-                        if (!memberSearchTerm) return true;
-                        const searchLower = memberSearchTerm.toLowerCase();
-                        return (
-                          member.name?.toLowerCase().includes(searchLower) ||
-                          member.email.toLowerCase().includes(searchLower)
-                        );
-                      }
-                    )
-                    .sort(
-                      (
-                        a: {
-                          name: string | null;
-                          email: string;
-                          clerkId: string;
-                        },
-                        b: {
-                          name: string | null;
-                          email: string;
-                          clerkId: string;
-                        }
-                      ) => {
-                        const aIsAdmin = selectedConversation.admins?.some(
-                          (admin) => admin.clerkId === a.clerkId
-                        );
-                        const bIsAdmin = selectedConversation.admins?.some(
-                          (admin) => admin.clerkId === b.clerkId
-                        );
-
-                        // Admins first, then regular members
-                        if (aIsAdmin && !bIsAdmin) return -1;
-                        if (!aIsAdmin && bIsAdmin) return 1;
-
-                        // Within same role, sort alphabetically by name
-                        const aName = a.name || a.email || "";
-                        const bName = b.name || b.email || "";
-                        return aName.localeCompare(bName);
-                      }
-                    )
-                    .map(
-                      (member: {
-                        clerkId: string;
-                        name: string | null;
-                        email: string;
-                      }) => {
-                        const isAdmin = selectedConversation.admins?.some(
-                          (admin) => admin.clerkId === member.clerkId
-                        );
-                        const isCurrentUser = member.clerkId === user?.id;
-
-                        return (
-                          <div
-                            key={member.clerkId}
-                            className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div
-                                className={`w-10 h-10 rounded-full ${getAvatarColor(
-                                  member.clerkId
-                                )} flex items-center justify-center`}
-                              >
-                                <span className="text-sm text-white font-medium">
-                                  {getInitials(member.name || member.email)}
-                                </span>
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium">
-                                    {member.name || "Unknown"}
-                                    {isCurrentUser && (
-                                      <span className="text-xs text-muted-foreground ml-1">
-                                        (You)
-                                      </span>
-                                    )}
-                                  </p>
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {member.email}
-                                </p>
-                              </div>
-                            </div>
-                            {isAdmin && (
-                              <span className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-full font-medium">
-                                Admin
-                              </span>
-                            )}
-                          </div>
-                        );
-                      }
-                    )}
-
-                  {/* No results message */}
-                  {selectedConversation.users.filter(
-                    (member: { name: string | null; email: string }) => {
-                      if (!memberSearchTerm) return true;
-                      const searchLower = memberSearchTerm.toLowerCase();
-                      return (
-                        member.name?.toLowerCase().includes(searchLower) ||
-                        member.email.toLowerCase().includes(searchLower)
-                      );
-                    }
-                  ).length === 0 &&
-                    memberSearchTerm && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No members found matching "{memberSearchTerm}"</p>
-                      </div>
-                    )}
-                </div>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Group Details Dialog (Admins only) */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Group Details</DialogTitle>
-          </DialogHeader>
-          {selectedConversation && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Group Name</label>
-                <Input
-                  value={editName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setEditName(e.target.value)
-                  }
-                  placeholder="Enter group name"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Input
-                  value={editDescription}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setEditDescription(e.target.value)
-                  }
-                  placeholder="Enter description"
-                />
-              </div>
-              <Tabs
-                value={editPanel}
-                onValueChange={(v: string) =>
-                  setEditPanel(v as typeof editPanel)
-                }
-                className="w-full"
-              >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="addMember">Add Member</TabsTrigger>
-                  <TabsTrigger value="updateAdmins">Update Admins</TabsTrigger>
-                  <TabsTrigger value="removeUsers">Remove Users</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="addMember">
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-10"
-                        placeholder="Search users..."
-                        value={addMemberSearch}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setAddMemberSearch(e.target.value)
-                        }
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-1 border rounded-md p-1">
-                      {availableUsers.length === 0 ? (
-                        <div className="text-center text-sm text-muted-foreground py-6">
-                          No users
-                        </div>
-                      ) : (
-                        availableUsers.map(
-                          (u: {
-                            clerkId: string;
-                            name: string | null;
-                            email: string;
-                          }) => {
-                            const isMember = editMembers.some(
-                              (m) => m.clerkId === u.clerkId
-                            );
-                            return (
-                              <div
-                                key={u.clerkId}
-                                className="flex items-center justify-between p-2 rounded hover:bg-muted"
-                              >
-                                <div>
-                                  <div className="text-sm font-medium">
-                                    {u.name || u.email}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {u.clerkId}
-                                  </div>
-                                </div>
-                                {isMember ? (
-                                  <Button size="sm" variant="outline" disabled>
-                                    Added
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => addMemberFromPicker(u)}
-                                  >
-                                    Add
-                                  </Button>
-                                )}
-                              </div>
-                            );
-                          }
-                        )
-                      )}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="updateAdmins">
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-10"
-                        placeholder="Search members..."
-                        value={adminsSearch}
-                        onChange={(e) => setAdminsSearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {editMembers
-                        .filter(
-                          (m: {
-                            clerkId: string;
-                            name?: string | null;
-                            email?: string;
-                          }) => {
-                            if (!adminsSearch) return true;
-                            const s = adminsSearch.toLowerCase();
-                            return (
-                              (m.name || "").toLowerCase().includes(s) ||
-                              (m.email || "").toLowerCase().includes(s) ||
-                              m.clerkId.toLowerCase().includes(s)
-                            );
-                          }
-                        )
-                        .map(
-                          (m: {
-                            clerkId: string;
-                            name?: string | null;
-                            email?: string;
-                          }) => {
-                            const isAdmin = editAdmins.has(m.clerkId);
-                            const isSelf = m.clerkId === user?.id;
-                            const numAdmins = editAdmins.size;
-                            return (
-                              <div
-                                key={m.clerkId}
-                                className="flex items-center justify-between p-2 rounded border"
-                              >
-                                <div>
-                                  <div className="text-sm font-medium">
-                                    {m.name || m.email || m.clerkId}{" "}
-                                    {isSelf && (
-                                      <span className="text-xs text-muted-foreground">
-                                        (You)
-                                      </span>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {m.clerkId}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant={isAdmin ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => toggleAdmin(m.clerkId)}
-                                    disabled={
-                                      isSelf && isAdmin && numAdmins === 1
-                                    }
-                                    title={
-                                      isSelf && isAdmin && numAdmins === 1
-                                        ? "Assign another admin before removing yourself"
-                                        : undefined
-                                    }
-                                  >
-                                    {isAdmin ? "Admin" : "Make Admin"}
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          }
-                        )}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="removeUsers">
-                  <div className="space-y-3">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        className="pl-10"
-                        placeholder="Search members to remove..."
-                        value={removeSearch}
-                        onChange={(e) => setRemoveSearch(e.target.value)}
-                      />
-                    </div>
-                    <div className="max-h-60 overflow-y-auto space-y-2">
-                      {editMembers
-                        .filter(
-                          (m: {
-                            clerkId: string;
-                            name?: string | null;
-                            email?: string;
-                          }) => {
-                            if (!removeSearch) return true;
-                            const s = removeSearch.toLowerCase();
-                            return (
-                              (m.name || "").toLowerCase().includes(s) ||
-                              (m.email || "").toLowerCase().includes(s) ||
-                              m.clerkId.toLowerCase().includes(s)
-                            );
-                          }
-                        )
-                        .map(
-                          (m: {
-                            clerkId: string;
-                            name?: string | null;
-                            email?: string;
-                          }) => {
-                            const isSelf = m.clerkId === user?.id;
-                            const isAdmin = editAdmins.has(m.clerkId);
-                            const numAdmins = editAdmins.size;
-                            const disableRemove =
-                              isSelf || (isAdmin && numAdmins === 1);
-                            const title = isSelf
-                              ? "You cannot remove yourself"
-                              : isAdmin && numAdmins === 1
-                              ? "Assign another admin before removing the last admin"
-                              : undefined;
-                            return (
-                              <div
-                                key={m.clerkId}
-                                className="flex items-center justify-between p-2 rounded border"
-                              >
-                                <div>
-                                  <div className="text-sm font-medium">
-                                    {m.name || m.email || m.clerkId}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {m.clerkId}
-                                  </div>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={disableRemove}
-                                  title={title}
-                                  onClick={() => removeMember(m.clerkId)}
-                                >
-                                  Remove
-                                </Button>
-                              </div>
-                            );
-                          }
-                        )}
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button onClick={saveGroupEdits}>Save Changes</Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EditGroupDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        editName={editName}
+        setEditName={setEditName}
+        editDescription={editDescription}
+        setEditDescription={setEditDescription}
+        editPanel={editPanel}
+        setEditPanel={(v) => setEditPanel(v)}
+        addMemberSearch={addMemberSearch}
+        setAddMemberSearch={setAddMemberSearch}
+        availableUsers={availableUsers}
+        editMembers={editMembers}
+        addMemberFromPicker={addMemberFromPicker}
+        adminsSearch={adminsSearch}
+        setAdminsSearch={setAdminsSearch}
+        editAdmins={editAdmins}
+        toggleAdmin={toggleAdmin}
+        removeSearch={removeSearch}
+        setRemoveSearch={setRemoveSearch}
+        removeMember={removeMember}
+        currentUserId={user?.id}
+        saveGroupEdits={saveGroupEdits}
+      />
     </SidebarProvider>
   );
 }
