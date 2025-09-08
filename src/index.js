@@ -78,6 +78,18 @@ socketService.initListeners();
 
 app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "web", "dist")));
+
+  app.get("/*splat", (req, res) => {
+    res.sendFile(path.resolve(__dirname, "web", "dist", "index.html"));
+  });
+} else {
+  app.get("/", (req, res) => {
+    res.send("Hello World!");
+  });
+}
+
 httpServer.listen(port, () => {
   console.log(`Server is running on port http://localhost:${port}`);
 });

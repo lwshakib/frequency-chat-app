@@ -83,6 +83,7 @@ export default function ChatPage() {
 
   // Dialog state
   const [isMembersDialogOpen, setIsMembersDialogOpen] = React.useState(false);
+  const [isProfileDialogOpen, setIsProfileDialogOpen] = React.useState(false);
   const [memberSearchTerm, setMemberSearchTerm] = React.useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editName, setEditName] = React.useState("");
@@ -592,7 +593,9 @@ export default function ChatPage() {
                         View Details
                       </DropdownMenuItem>
                     ) : (
-                      <DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setIsProfileDialogOpen(true)}
+                      >
                         <Users className="h-4 w-4 mr-2" />
                         View Profile
                       </DropdownMenuItem>
@@ -604,9 +607,6 @@ export default function ChatPage() {
                         </DropdownMenuItem>
                       )}
                     {/* Notifications removed */}
-                    {selectedConversation.type === "ONE_TO_ONE" && (
-                      <DropdownMenuItem>Block User</DropdownMenuItem>
-                    )}
                     <DropdownMenuItem
                       className="text-red-600"
                       onClick={async () => {
@@ -932,6 +932,45 @@ export default function ChatPage() {
           </div>
         )}
       </SidebarInset>
+
+      {/* One-to-one Profile Dialog */}
+      <Dialog open={isProfileDialogOpen} onOpenChange={setIsProfileDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Profile</DialogTitle>
+          </DialogHeader>
+          {selectedConversation &&
+            selectedConversation.type === "ONE_TO_ONE" && (
+              <div className="space-y-4">
+                {(() => {
+                  const other = selectedConversation.users.find(
+                    (u) => u.clerkId !== (user?.id || "")
+                  );
+                  if (!other) return null;
+                  return (
+                    <div className="flex items-start gap-4">
+                      <div
+                        className={`w-12 h-12 rounded-full ${getAvatarColor(
+                          other.clerkId
+                        )} flex items-center justify-center text-white font-medium`}
+                      >
+                        {getInitials(other.name || other.email)}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-base font-semibold">
+                          {other.name || other.email}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {other.email}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+        </DialogContent>
+      </Dialog>
 
       {/* Group Details Dialog */}
       <Dialog open={isMembersDialogOpen} onOpenChange={setIsMembersDialogOpen}>
