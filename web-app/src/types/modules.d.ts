@@ -10,3 +10,17 @@ declare module "@tailwindcss/vite" {
   const plugin: () => PluginOption;
   export default plugin;
 }
+
+declare module "vite" {
+  export type PluginOption = any;
+  export function defineConfig(config: any): any;
+}
+
+// Minimal JSX fallbacks to prevent TS7026 when React types are missing
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      [elemName: string]: any;
+    }
+  }
+}

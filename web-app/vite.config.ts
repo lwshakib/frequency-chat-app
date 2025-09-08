@@ -1,7 +1,7 @@
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig } from "vite";
-import tailwindcss from '@tailwindcss/vite'
 import path from "path";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -17,7 +17,7 @@ export default defineConfig({
         target: process.env.VITE_API_URL || "http://localhost:3000",
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, "/api"),
+        rewrite: (path: string) => path.replace(/^\/api/, "/api"),
       },
     },
   },
