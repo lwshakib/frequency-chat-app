@@ -5,7 +5,7 @@ import express from "express";
 import helmet from "helmet";
 import http from "http";
 import morgan from "morgan";
-import { dirname } from "path";
+import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { authMiddleware } from "./middlewares/auth.middlewares.js";
 import router from "./routes/index.js";
@@ -79,10 +79,12 @@ socketService.initListeners();
 app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "web-app", "dist")));
+  app.use(express.static(path.join(__dirname, "..", "web-app", "dist")));
 
-  app.get("/*splat", (req, res) => {
-    res.sendFile(path.resolve(__dirname, "web-app", "dist", "index.html"));
+  app.get("/", (req, res) => {
+    res.sendFile(
+      path.resolve(__dirname, "..", "web-app", "dist", "index.html")
+    );
   });
 } else {
   app.get("/", (req, res) => {
