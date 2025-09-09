@@ -109,3 +109,14 @@ export const deleteConversation = async (
   });
   return data;
 };
+
+export const getCloudinaryAuth = async () => {
+  const { data } = await axios.get(`/api/cloudinary-signature`);
+  return data as {
+    signature: string;
+    cloudName: string;
+    timestamp: number;
+    folder: string;
+    apiKey: string;
+  };
+};

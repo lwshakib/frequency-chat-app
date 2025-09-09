@@ -483,7 +483,38 @@ export default function ChatPage() {
               messageInput={messageInput}
               onChangeMessage={onChangeMessage}
               onKeyPress={handleKeyPress}
-              onSend={sendMessage}
+              onSendMessage={async ({ content, files }) => {
+                // When files present, create a message payload with files
+                if (!selectedConversation || !user) return;
+                const tempId = `temp-${Date.now()}`;
+                const optimisticMessage: Message = {
+                  id: tempId,
+                  content: content,
+                  type:
+                    files.length > 0 && content
+                      ? "text+files"
+                      : files.length > 0
+                      ? "files"
+                      : "text",
+                  files,
+                  conversationId: selectedConversation.id,
+                  senderId: user.id,
+                  isRead: MESSAGE_READ_STATUS.UNREAD,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                  sender: {
+                    id: user.id,
+                    clerkId: user.id,
+                    name: user.fullName || user.firstName || "You",
+                    email: user.primaryEmailAddress?.emailAddress || "",
+                    imageUrl: user.imageUrl,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                  },
+                };
+                sendMessageSocket(optimisticMessage);
+                setMessageInput("");
+              }}
               onEmojiAppend={(emoji) => setMessageInput((prev) => prev + emoji)}
             />
             <TypingIndicator conversationId={selectedConversation.id} />

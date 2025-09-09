@@ -1,3 +1,3 @@
 {
-    "ignore": ["web/"]
+    "ignore": ["web-app/"]
   }

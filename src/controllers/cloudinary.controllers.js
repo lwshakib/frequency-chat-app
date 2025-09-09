@@ -14,7 +14,7 @@ export const getCloudinaryAuth = async (req, res) => {
       { timestamp, folder },
       process.env.CLOUDINARY_API_SECRET
     );
-    return NextResponse.json({
+    return res.json({
       signature,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
       timestamp,
@@ -23,18 +23,15 @@ export const getCloudinaryAuth = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in cloudinary-signature GET:", error);
-    return NextResponse.json(
-      {
-        error:
-          process.env.NODE_ENV === "development"
-            ? `Internal Server Error: ${
-                error instanceof Error ? error.message : String(error)
-              }`
-            : "Internal Server Error",
-        ...(process.env.NODE_ENV === "development" &&
-          error instanceof Error && { stack: error.stack }),
-      },
-      { status: 500 }
-    );
+    return res.status(500).json({
+      error:
+        process.env.NODE_ENV === "development"
+          ? `Internal Server Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`
+          : "Internal Server Error",
+      ...(process.env.NODE_ENV === "development" &&
+        error instanceof Error && { stack: error.stack }),
+    });
   }
 };

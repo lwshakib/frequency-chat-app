@@ -33,7 +33,7 @@ export interface Message {
   senderId: string;
   conversationId: string;
   isRead: MESSAGE_READ_STATUS;
-  files: string[];
+  files: (string | { url: string; name: string; bytes: number })[];
   createdAt: Date;
   updatedAt: Date;
   sender: User;
@@ -74,7 +74,7 @@ export interface CreateMessageRequest {
   conversationId: string;
   content: string;
   type: string;
-  files?: string[];
+  files?: (string | { url: string; name: string; bytes: number })[];
   audio?: unknown;
 }
 

@@ -48,7 +48,7 @@ model Message {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
   isRead    MESSAGE_READ_STATUS @default(UNREAD)
-  files     String[]
+  files     Json?
   lastMessageConversation Conversation? @relation("LastMessage")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
