@@ -612,6 +612,12 @@ export default function ChatPage() {
             callOverlayText ||
             `${incomingCall?.calledBy?.name || "Someone"} is calling...`
           }
+          imageUrl={
+            incomingCall?.calledBy?.imageUrl ||
+            selectedConversation?.imageUrl ||
+            undefined
+          }
+          onCancel={() => setCallOverlayText(null)}
         />
       )}
 
