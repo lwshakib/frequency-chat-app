@@ -5,7 +5,6 @@ import GroupDetailsDialog from "@/components/chat/GroupDetailsDialog";
 import MessageInput from "@/components/chat/MessageInput";
 import MessagesArea from "@/components/chat/MessagesArea";
 import ProfileDialog from "@/components/chat/ProfileDialog";
-import TypingIndicator from "@/components/chat/TypingIndicator";
 import {
   SidebarInset,
   SidebarProvider,
@@ -517,7 +516,6 @@ export default function ChatPage() {
               }}
               onEmojiAppend={(emoji) => setMessageInput((prev) => prev + emoji)}
             />
-            <TypingIndicator conversationId={selectedConversation.id} />
           </>
         )}
       </SidebarInset>

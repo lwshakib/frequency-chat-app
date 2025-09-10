@@ -1,16 +1,18 @@
 import ConversationEmpty from "@/components/chat/ConversationEmpty";
 import MessageSkeleton from "@/components/chat/MessageSkeleton";
 import MessagesList from "@/components/chat/MessagesList";
+import TypingIndicator from "@/components/chat/TypingIndicator";
 import WelcomePanel from "@/components/chat/WelcomePanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useChatStore } from "@/contexts/chat-context";
 import {
   formatMessageTime,
-  getAvatarColor,
   getDisplayDescription,
   getDisplayName,
   getInitials,
 } from "@/lib/chat-helpers";
 import type { Conversation, Message } from "@/types";
+import { useUser } from "@clerk/clerk-react";
 import * as React from "react";
 
 type Props = {
@@ -32,10 +34,19 @@ export default function MessagesArea({
   isCurrentUser,
   scrollAreaRef,
 }: Props) {
+  const { typingByConversationId } = useChatStore();
+  const { user } = useUser();
   const shouldShowLoading = React.useMemo(() => {
     if (!isLoading) return false;
     return !isOneToOne; // hide loading UI for 1:1
   }, [isLoading, isOneToOne]);
+
+  const typingIds = conversation
+    ? typingByConversationId[conversation.id] || []
+    : [];
+  const visibleTypingIds = typingIds.filter((id) => id !== user?.id);
+
+  const showTypingBubble = conversation && visibleTypingIds.length > 0;
 
   return (
     <div className="flex-1 min-h-0">
@@ -51,13 +62,17 @@ export default function MessagesArea({
                 displayDescription={getDisplayDescription(conversation)}
               />
             ) : (
-              <MessagesList
-                messages={messages}
-                isCurrentUser={isCurrentUser}
-                getAvatarColor={getAvatarColor}
-                getInitials={getInitials}
-                formatMessageTime={formatMessageTime}
-              />
+              <>
+                <MessagesList
+                  messages={messages}
+                  isCurrentUser={isCurrentUser}
+                  getInitials={getInitials}
+                  formatMessageTime={formatMessageTime}
+                />
+                {showTypingBubble && conversation && (
+                  <TypingIndicator conversationId={conversation.id} />
+                )}
+              </>
             )
           ) : (
             <WelcomePanel resolvedTheme={resolvedTheme} />

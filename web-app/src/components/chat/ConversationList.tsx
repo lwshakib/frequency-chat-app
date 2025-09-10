@@ -46,6 +46,9 @@ export default function ConversationList({
             (id) => id !== (currentUserId || "")
           );
           if (visible.length === 0) return null;
+          if (conversation.type === "ONE_TO_ONE") {
+            return "Typing…";
+          }
           const names = conversation.users
             .filter((u) => visible.includes(u.clerkId))
             .map((u) => u.name || u.email || "Someone");
