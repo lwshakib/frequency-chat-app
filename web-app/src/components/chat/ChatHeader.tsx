@@ -22,6 +22,8 @@ export default function ChatHeader({
   onOpenProfile,
   onOpenEdit,
   onDelete,
+  onAudioCall,
+  onVideoCall,
 }: {
   title: string;
   description: string;
@@ -34,6 +36,8 @@ export default function ChatHeader({
   onOpenProfile: () => void;
   onOpenEdit: () => void;
   onDelete: () => Promise<void> | void;
+  onAudioCall: () => void;
+  onVideoCall: () => void;
 }) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b">
@@ -62,7 +66,9 @@ export default function ChatHeader({
                 </span>
               </div>
             )}
-            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-background rounded-full"></div>
+            {!isGroup && (
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-background rounded-full"></div>
+            )}
           </div>
           <div className="flex flex-col">
             <h1 className="text-base font-medium">{title}</h1>
@@ -71,10 +77,20 @@ export default function ChatHeader({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onAudioCall}
+          >
             <Phone className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onVideoCall}
+          >
             <Video className="h-4 w-4" />
           </Button>
           <DropdownMenu>

@@ -13,6 +13,25 @@ export interface SocketContextType {
   emitDeleteConversation: (conversation: Conversation) => void;
   selfOnline: boolean;
   selfLastOnlineAt?: string;
+  callToUserBySocket: (data: {
+    event: string; // video-call, audio-call
+    calledBy: {
+      clerkId: string;
+      name: string;
+      imageUrl: string;
+    };
+    conversation: {
+      id: string;
+      name: string;
+      imageUrl: string;
+      type: string;
+      users: {
+        clerkId: string;
+        name: string;
+        imageUrl: string;
+      }[];
+    };
+  }) => void;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(

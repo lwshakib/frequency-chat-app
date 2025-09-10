@@ -138,6 +138,31 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
+  const callToUserBySocket = useCallback(
+    (data: {
+      event: string; // video-call, audio-call
+      calledBy: {
+        clerkId: string;
+        name: string;
+        imageUrl: string;
+      };
+      conversation:{
+        id: string;
+        name: string;
+        imageUrl: string;
+        type: string;
+        users: {
+          clerkId: string;
+          name: string;
+          imageUrl: string;
+        }[];
+      }
+    }) => {
+      socket?.emit("call:user", data);
+    },
+    [socket]
+  );
+
   // Create socket once per user session
   useEffect(() => {
     if (!user?.id) return;
@@ -292,6 +317,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         emitDeleteConversation,
         selfOnline,
         selfLastOnlineAt,
+        callToUserBySocket,
       }}
     >
       {children}

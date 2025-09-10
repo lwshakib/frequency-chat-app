@@ -1,4 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import CallOverlay from "@/components/chat/CallOverlay";
 import ChatHeader from "@/components/chat/ChatHeader";
 import EditGroupDialog from "@/components/chat/EditGroupDialog";
 import GroupDetailsDialog from "@/components/chat/GroupDetailsDialog";
@@ -50,6 +51,7 @@ export default function ChatPage() {
     emitTypingStart,
     emitTypingStop,
     emitDeleteConversation,
+    callToUserBySocket,
   } = useSocket();
 
   // Message input state
@@ -81,6 +83,11 @@ export default function ChatPage() {
   const [removeSearch, setRemoveSearch] = React.useState("");
   const originalAdminsRef = React.useRef<string[]>([]);
   const originalMembersRef = React.useRef<string[]>([]);
+
+  // Call overlay state
+  const [callOverlayText, setCallOverlayText] = React.useState<string | null>(
+    null
+  );
 
   // Ref for scroll area
   const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
@@ -483,6 +490,52 @@ export default function ChatPage() {
                 console.error("Failed to delete conversation", e);
               }
             }}
+            onAudioCall={() => {
+              if (!selectedConversation || !user) return;
+              callToUserBySocket({
+                event: "audio-call",
+                calledBy: {
+                  clerkId: user.id,
+                  name: user.fullName || user.firstName || "",
+                  imageUrl: user.imageUrl || "",
+                },
+                conversation: {
+                  id: selectedConversation.id,
+                  name: getDisplayName(selectedConversation, user.id),
+                  imageUrl: selectedConversation.imageUrl || "",
+                  type: selectedConversation.type,
+                  users: selectedConversation.users.map((u) => ({
+                    clerkId: u.clerkId,
+                    name: u.name || "",
+                    imageUrl: u.imageUrl || "",
+                  })),
+                },
+              });
+              setCallOverlayText("hi there you are calling");
+            }}
+            onVideoCall={() => {
+              if (!selectedConversation || !user) return;
+              callToUserBySocket({
+                event: "video-call",
+                calledBy: {
+                  clerkId: user.id,
+                  name: user.fullName || user.firstName || "",
+                  imageUrl: user.imageUrl || "",
+                },
+                conversation: {
+                  id: selectedConversation.id,
+                  name: getDisplayName(selectedConversation, user.id),
+                  imageUrl: selectedConversation.imageUrl || "",
+                  type: selectedConversation.type,
+                  users: selectedConversation.users.map((u) => ({
+                    clerkId: u.clerkId,
+                    name: u.name || "",
+                    imageUrl: u.imageUrl || "",
+                  })),
+                },
+              });
+              setCallOverlayText("hi there you are calling");
+            }}
           />
         )}
 
@@ -547,6 +600,8 @@ export default function ChatPage() {
           </>
         )}
       </SidebarInset>
+
+      {callOverlayText && <CallOverlay text={callOverlayText} />}
 
       <ProfileDialog
         open={isProfileDialogOpen}
