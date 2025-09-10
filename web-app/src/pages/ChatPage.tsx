@@ -512,7 +512,9 @@ export default function ChatPage() {
                   })),
                 },
               });
-              setCallOverlayText("hi there you are calling");
+              setCallOverlayText(
+                `Calling ${getDisplayName(selectedConversation, user.id)}...`
+              );
             }}
             onVideoCall={() => {
               if (!selectedConversation || !user) return;
@@ -535,7 +537,9 @@ export default function ChatPage() {
                   })),
                 },
               });
-              setCallOverlayText("hi there you are calling");
+              setCallOverlayText(
+                `Calling ${getDisplayName(selectedConversation, user.id)}...`
+              );
             }}
           />
         )}
@@ -606,10 +610,7 @@ export default function ChatPage() {
         <CallOverlay
           text={
             callOverlayText ||
-            (incomingCall?.event === "video-call"
-              ? "hi there you are calling"
-              : "hi there you are calling") ||
-            "hi there you are calling"
+            `${incomingCall?.calledBy?.name || "Someone"} is calling...`
           }
         />
       )}
