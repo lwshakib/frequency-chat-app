@@ -11,6 +11,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [selfLastOnlineAt, setSelfLastOnlineAt] = useState<
     string | undefined
   >();
+  const [incomingCall, setIncomingCall] =
+    useState<SocketContextType["incomingCall"]>(null);
   const {
     selectedConversation,
     conversations,
@@ -146,7 +148,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         name: string;
         imageUrl: string;
       };
-      conversation:{
+      conversation: {
         id: string;
         name: string;
         imageUrl: string;
@@ -156,7 +158,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           name: string;
           imageUrl: string;
         }[];
-      }
+      };
     }) => {
       socket?.emit("call:user", data);
     },
@@ -289,14 +291,34 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         console.error("Failed to apply presence update to store", e);
       }
     };
-
+    const handleCallUser = (payload: {
+      event: string;
+      calledBy: {
+        clerkId: string;
+        name: string;
+        imageUrl: string;
+      };
+      conversation: {
+        id: string;
+        name: string;
+        imageUrl: string;
+        type: string;
+        users: {
+          clerkId: string;
+          name: string;
+          imageUrl: string;
+        }[];
+      };
+    }) => {
+      setIncomingCall(payload);
+    };
     socket.on("message", handleMessage);
     socket.on("create:group", handleCreateGroup);
     socket.on("delete:conversation", handleDeleteConversation);
     socket.on("typing:start", handleTypingStart);
     socket.on("typing:stop", handleTypingStop);
     socket.on("presence:update", handlePresence);
-
+    socket.on("call:user", handleCallUser);
     return () => {
       socket.off("message", handleMessage);
       socket.off("create:group", handleCreateGroup);
@@ -304,6 +326,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off("typing:start", handleTypingStart);
       socket.off("typing:stop", handleTypingStop);
       socket.off("presence:update", handlePresence);
+      socket.off("call:user", handleCallUser);
     };
   }, [socket, onMessageRec, onCreateGroup, user?.id]);
   return (
@@ -318,6 +341,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         selfOnline,
         selfLastOnlineAt,
         callToUserBySocket,
+        incomingCall,
+        clearIncomingCall: () => setIncomingCall(null),
       }}
     >
       {children}

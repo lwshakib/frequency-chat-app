@@ -52,6 +52,7 @@ export default function ChatPage() {
     emitTypingStop,
     emitDeleteConversation,
     callToUserBySocket,
+    incomingCall,
   } = useSocket();
 
   // Message input state
@@ -601,7 +602,17 @@ export default function ChatPage() {
         )}
       </SidebarInset>
 
-      {callOverlayText && <CallOverlay text={callOverlayText} />}
+      {(callOverlayText || incomingCall) && (
+        <CallOverlay
+          text={
+            callOverlayText ||
+            (incomingCall?.event === "video-call"
+              ? "hi there you are calling"
+              : "hi there you are calling") ||
+            "hi there you are calling"
+          }
+        />
+      )}
 
       <ProfileDialog
         open={isProfileDialogOpen}

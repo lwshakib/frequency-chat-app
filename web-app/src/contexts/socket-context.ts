@@ -32,6 +32,26 @@ export interface SocketContextType {
       }[];
     };
   }) => void;
+  incomingCall: null | {
+    event: string;
+    calledBy: {
+      clerkId: string;
+      name: string;
+      imageUrl: string;
+    };
+    conversation: {
+      id: string;
+      name: string;
+      imageUrl: string;
+      type: string;
+      users: {
+        clerkId: string;
+        name: string;
+        imageUrl: string;
+      }[];
+    };
+  };
+  clearIncomingCall: () => void;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(

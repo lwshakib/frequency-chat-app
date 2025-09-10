@@ -75,6 +75,22 @@ class SocketService {
         } catch {}
       });
 
+      socket.on("call:user", (payload) => {
+        try {
+          const { event, calledBy, conversation } = payload || {};
+          if (!event || !calledBy || !conversation) return;
+          const recipientIds = conversation.users
+            .map((user) => user.clerkId)
+            .filter((id) => id !== calledBy.clerkId);
+          if (recipientIds.length === 0) return;
+          io.to(recipientIds).emit("call:user", {
+            event,
+            calledBy,
+            conversation,
+          });
+        } catch {}
+      });
+
       // Typing indicators
       socket.on("typing:start", (payload) => {
         try {
