@@ -8,8 +8,46 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { getCloudinaryAuth } from "@/lib/api";
 import axios from "axios";
-import { File as FileIcon, Mic, Paperclip, Send, Smile, X } from "lucide-react";
+import {
+  File as FileIcon,
+  Mic,
+  MicOff,
+  Paperclip,
+  Send,
+  Smile,
+  X,
+} from "lucide-react";
 import * as React from "react";
+import AudioRecorder from "./AudioRecorder";
+
+// Minimal Web Speech API typings to avoid `any`
+type WebSpeechRecognitionResult = {
+  isFinal: boolean;
+  0: { transcript: string };
+};
+
+type WebSpeechRecognitionEvent = {
+  resultIndex: number;
+  results: WebSpeechRecognitionResult[];
+};
+
+type WebSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  onresult: (event: WebSpeechRecognitionEvent) => void;
+  onerror: (event: unknown) => void;
+  onend: () => void;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionConstructor = new () => WebSpeechRecognition;
+
+type WithSpeechWindow = Window & {
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+  SpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 export default function MessageInput({
   messageInput,
@@ -33,6 +71,12 @@ export default function MessageInput({
     { file: File; url?: string }[]
   >([]);
   const [uploadProgress, setUploadProgress] = React.useState<number[]>([]);
+  const [isListening, setIsListening] = React.useState(false);
+  const recognitionRef = React.useRef<WebSpeechRecognition | null>(null);
+  const handleRecordedFile = (file: File) => {
+    setFilePreviews((prev) => [...prev, { file }]);
+    setUploadProgress((prev) => [...prev, 0]);
+  };
 
   const handlePaperclipClick = () => {
     fileInputRef.current?.click();
@@ -122,6 +166,61 @@ export default function MessageInput({
       clearAllPreviews();
     }
   };
+
+  // Speech-to-text (Web Speech API)
+  const toggleListening = async () => {
+    try {
+      const speechWindow = window as WithSpeechWindow;
+      const SpeechRecognitionCtor =
+        speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+
+      if (!SpeechRecognitionCtor) {
+        console.warn("Speech recognition not supported in this browser.");
+        return;
+      }
+
+      if (!isListening) {
+        const recognition = new SpeechRecognitionCtor();
+        recognition.lang = "en-US";
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = (event: WebSpeechRecognitionEvent) => {
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              finalTranscript += result[0].transcript;
+            }
+          }
+          if (finalTranscript) {
+            onEmojiAppend(finalTranscript + " ");
+          }
+        };
+
+        recognition.onerror = () => {
+          setIsListening(false);
+          recognition.stop();
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+        setIsListening(true);
+      } else {
+        recognitionRef.current?.stop();
+        setIsListening(false);
+      }
+    } catch (err) {
+      console.error("Speech recognition error", err);
+      setIsListening(false);
+    }
+  };
+
+  // Audio recording moved into AudioRecorder component
 
   return (
     <div className="border-t p-4 shrink-0">
@@ -266,9 +365,23 @@ export default function MessageInput({
           </Popover>
         </div>
 
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Mic className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
+          onClick={toggleListening}
+          aria-label={
+            isListening ? "Stop speech to text" : "Start speech to text"
+          }
+          title={isListening ? "Stop speech to text" : "Start speech to text"}
+        >
+          {isListening ? (
+            <MicOff className="h-4 w-4" />
+          ) : (
+            <Mic className="h-4 w-4" />
+          )}
         </Button>
+        <AudioRecorder onRecorded={handleRecordedFile} />
         <Button
           size="icon"
           className="h-8 w-8"

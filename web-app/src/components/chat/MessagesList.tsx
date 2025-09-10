@@ -89,9 +89,12 @@ export default function MessagesList({
                       typeof fileRef === "string"
                         ? getFileName(url)
                         : fileRef.name || getFileName(url);
+                    const baseUrl = url.split("?")[0];
                     const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(
-                      url.split("?")[0]
+                      baseUrl
                     );
+                    const isAudio = /\.(mp3|wav|ogg|m4a|webm)$/i.test(baseUrl);
+                    const isVideo = /\.(mp4|webm|ogg|mov|mkv)$/i.test(baseUrl);
                     return (
                       <div key={idx} className="">
                         {isImage ? (
@@ -119,6 +122,67 @@ export default function MessagesList({
                                 download
                                 className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
                                 aria-label="Download image"
+                                title="Download"
+                              >
+                                <Download className={`h-4 w-4 ${iconColor}`} />
+                              </a>
+                            </div>
+                          </div>
+                        ) : isAudio ? (
+                          <div className="relative inline-flex items-center gap-2 rounded border bg-muted/40 px-2 py-2 w-[320px]">
+                            <audio controls className="w-full">
+                              <source src={url} />
+                              Your browser does not support the audio element.
+                            </audio>
+                            <div className="absolute top-1 right-1 flex gap-1">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                aria-label="Open audio in new tab"
+                                title="Open"
+                              >
+                                <ExternalLink
+                                  className={`h-4 w-4 ${iconColor}`}
+                                />
+                              </a>
+                              <a
+                                href={url}
+                                download
+                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                aria-label="Download audio"
+                                title="Download"
+                              >
+                                <Download className={`h-4 w-4 ${iconColor}`} />
+                              </a>
+                            </div>
+                          </div>
+                        ) : isVideo ? (
+                          <div className="relative inline-block">
+                            <video
+                              controls
+                              src={url}
+                              className="max-h-48 rounded border object-contain"
+                            />
+                            <div className="absolute top-1 right-1 flex gap-1">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                aria-label="Open video in new tab"
+                                title="Open"
+                              >
+                                <ExternalLink
+                                  className={`h-4 w-4 ${iconColor}`}
+                                />
+                              </a>
+                              <a
+                                href={url}
+                                download
+                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                aria-label="Download video"
                                 title="Download"
                               >
                                 <Download className={`h-4 w-4 ${iconColor}`} />
