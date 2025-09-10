@@ -1,69 +1,94 @@
-# React + TypeScript + Vite
+## Frequency Chat – Web App (React + TypeScript + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Production‑ready frontend for the Frequency Chat application.
 
-Currently, two official plugins are available:
+### Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** + **TypeScript** with **Vite 7**
+- **Tailwind CSS v4** + shadcn/ui components (Radix UI)
+- **React Router 7**
+- **Clerk** for auth and theming
+- **Socket.IO Client** for realtime messaging
+- **Zustand** for local state
 
-## Expanding the ESLint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js 18+ (recommended)
+- A running backend API (defaults to `http://localhost:3000`)
+- Clerk publishable key
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Environment variables
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+Create a `.env.local` in this `web-app` folder:
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# Base URL for both API proxy and Socket.IO client
+VITE_API_URL=http://localhost:3000
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Required by:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `src/main.tsx` – `VITE_CLERK_PUBLISHABLE_KEY`
+- `src/contexts/SocketProvider.tsx` – `VITE_API_URL` (Socket.IO)
+- `vite.config.ts` – dev server proxy for `/api` → `VITE_API_URL`
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Install & run
+
+```bash
+pnpm i   # or npm i / yarn
+pnpm dev # or npm run dev / yarn dev
 ```
+
+Build & preview:
+
+```bash
+pnpm build   # type-check + vite build → dist/
+pnpm preview # serve the production build locally
+```
+
+Lint:
+
+```bash
+pnpm lint
+```
+
+### Dev server proxy
+
+All frontend API calls use relative paths like `/api/...` (see `src/lib/api.ts`).
+`vite.config.ts` proxies `/api` to `VITE_API_URL` in development. Ensure your backend is running and CORS is configured for production deployments.
+
+### Realtime sockets
+
+`SocketProvider` connects to `VITE_API_URL` via Socket.IO and emits/listens for:
+
+- `event:message`, `message`
+- `create:group`, `delete:conversation`
+- `typing:start`, `typing:stop`
+
+### Scripts
+
+Defined in `package.json`:
+
+- `dev` – start Vite dev server
+- `build` – TypeScript build + Vite production build
+- `preview` – preview built app
+- `lint` – run ESLint
+
+### Project structure (high level)
+
+- `src/components/ui/*` – shadcn/ui primitives
+- `src/components/chat/*` – chat UI (messages, input, typing, etc.)
+- `src/contexts/*` – theme, sockets, chat store
+- `src/lib/*` – API helpers, utils
+- `src/pages/ChatPage.tsx` – main chat page
+
+### Bundle analysis (optional)
+
+`rollup-plugin-visualizer` is enabled; after a build, open the generated report (e.g. `stats.html`) to inspect bundle composition.
+
+### Notes
+
+- Update favicon/logos in `public/` as needed.
+- The production build outputs to `dist/` (also used by the root server if you serve static files).
+- Keep `.env.local` out of version control.
