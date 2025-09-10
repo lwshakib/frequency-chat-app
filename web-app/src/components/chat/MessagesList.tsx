@@ -1,6 +1,7 @@
 import type { Message } from "@/types";
 import {
   Download,
+  ExternalLink,
   File as FileIcon,
   FileSpreadsheet,
   FileText,
@@ -78,10 +79,10 @@ export default function MessagesList({
                   : "bg-muted"
               }`}
             >
-              {message.content && <p className="text-sm">{message.content}</p>}
               {message.files && message.files.length > 0 && (
                 <div className="mt-2 space-y-2">
                   {message.files.map((fileRef, idx) => {
+                    const iconColor = "text-black dark:text-white";
                     const url =
                       typeof fileRef === "string" ? fileRef : fileRef.url;
                     const displayName =
@@ -100,15 +101,29 @@ export default function MessagesList({
                               alt="attachment"
                               className="max-h-48 rounded border object-contain"
                             />
-                            <a
-                              href={url}
-                              download
-                              className="absolute top-1 right-1 inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
-                              aria-label="Download image"
-                              title="Download"
-                            >
-                              <Download className="h-4 w-4" />
-                            </a>
+                            <div className="absolute top-1 right-1 flex gap-1">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                aria-label="Open image in new tab"
+                                title="Open"
+                              >
+                                <ExternalLink
+                                  className={`h-4 w-4 ${iconColor}`}
+                                />
+                              </a>
+                              <a
+                                href={url}
+                                download
+                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                aria-label="Download image"
+                                title="Download"
+                              >
+                                <Download className={`h-4 w-4 ${iconColor}`} />
+                              </a>
+                            </div>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 rounded border bg-muted/40 px-2 py-1 w-64 overflow-hidden">
@@ -124,12 +139,24 @@ export default function MessagesList({
                             </a>
                             <a
                               href={url}
-                              download
+                              target="_blank"
+                              rel="noreferrer"
                               className="ml-auto inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted"
+                              aria-label="Open file in new tab"
+                              title="Open"
+                            >
+                              <ExternalLink
+                                className={`h-4 w-4 ${iconColor}`}
+                              />
+                            </a>
+                            <a
+                              href={url}
+                              download
+                              className="inline-flex items-center justify-center h-6 w-6 rounded hover:bg-muted"
                               aria-label="Download file"
                               title="Download"
                             >
-                              <Download className="h-4 w-4" />
+                              <Download className={`h-4 w-4 ${iconColor}`} />
                             </a>
                           </div>
                         )}
@@ -138,6 +165,7 @@ export default function MessagesList({
                   })}
                 </div>
               )}
+              {message.content && <p className="text-sm">{message.content}</p>}
               <p
                 className={`text-xs mt-1 ${
                   isCurrentUser(message.senderId)

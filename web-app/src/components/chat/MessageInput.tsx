@@ -80,100 +80,47 @@ export default function MessageInput({
   const handleSendClick = async () => {
     const hasText = !!messageInput.trim();
     const hasFiles = filePreviews.length > 0;
-    if (hasFiles && !hasText) {
-      try {
-        // Upload each file to Cloudinary using axios with progress
-        for (let i = 0; i < filePreviews.length; i++) {
-          const item = filePreviews[i];
-          const auth = await getCloudinaryAuth();
-          const form = new FormData();
-          form.append("file", item.file);
-          form.append("api_key", auth.apiKey);
-          form.append("timestamp", String(auth.timestamp));
-          form.append("folder", auth.folder);
-          form.append("signature", auth.signature);
-
-          const uploadUrl = `https://api.cloudinary.com/v1_1/${auth.cloudName}/auto/upload`;
-          const { data: json } = await axios.post(uploadUrl, form, {
-            onUploadProgress: (evt) => {
-              if (!evt.total) return;
-              const percent = Math.round((evt.loaded * 100) / evt.total);
-              setUploadProgress((prev) => {
-                const copy = [...prev];
-                copy[i] = percent;
-                return copy;
-              });
-            },
-          });
-          console.log("Cloudinary upload success:", {
-            name: item.file.name,
-            secure_url: json.secure_url,
-            public_id: json.public_id,
-            resource_type: json.resource_type,
-          });
-          // Send message with only one file object per upload
-          onSendMessage({
-            content: "",
-            files: [
-              {
-                url: json.secure_url,
-                name: item.file.name,
-                bytes: item.file.size,
-              },
-            ],
-          });
-        }
-      } catch (e) {
-        console.error("Failed to get Cloudinary signature(s)", e);
-      } finally {
-        clearAllPreviews();
-      }
-      return;
-    }
-
     if (!hasText && !hasFiles) return;
 
-    if (hasFiles && hasText) {
-      try {
-        const fileObjs: { url: string; name: string; bytes: number }[] = [];
-        for (let i = 0; i < filePreviews.length; i++) {
-          const item = filePreviews[i];
-          const auth = await getCloudinaryAuth();
-          const form = new FormData();
-          form.append("file", item.file);
-          form.append("api_key", auth.apiKey);
-          form.append("timestamp", String(auth.timestamp));
-          form.append("folder", auth.folder);
-          form.append("signature", auth.signature);
-          const uploadUrl = `https://api.cloudinary.com/v1_1/${auth.cloudName}/auto/upload`;
-          const { data: json } = await axios.post(uploadUrl, form, {
-            onUploadProgress: (evt) => {
-              if (!evt.total) return;
-              const percent = Math.round((evt.loaded * 100) / evt.total);
-              setUploadProgress((prev) => {
-                const copy = [...prev];
-                copy[i] = percent;
-                return copy;
-              });
-            },
-          });
-          fileObjs.push({
-            url: json.secure_url,
-            name: item.file.name,
-            bytes: item.file.size,
-          });
-        }
-        onSendMessage({ content: messageInput.trim(), files: fileObjs });
-      } catch (e) {
-        console.error("Failed to upload files for mixed message", e);
-      } finally {
-        clearAllPreviews();
+    try {
+      const fileObjs: { url: string; name: string; bytes: number }[] = [];
+      for (let i = 0; i < filePreviews.length; i++) {
+        const item = filePreviews[i];
+        const auth = await getCloudinaryAuth();
+        const form = new FormData();
+        form.append("file", item.file);
+        form.append("api_key", auth.apiKey);
+        form.append("timestamp", String(auth.timestamp));
+        form.append("folder", auth.folder);
+        form.append("signature", auth.signature);
+        const uploadUrl = `https://api.cloudinary.com/v1_1/${auth.cloudName}/auto/upload`;
+        const { data: json } = await axios.post(uploadUrl, form, {
+          onUploadProgress: (evt) => {
+            if (!evt.total) return;
+            const percent = Math.round((evt.loaded * 100) / evt.total);
+            setUploadProgress((prev) => {
+              const copy = [...prev];
+              copy[i] = percent;
+              return copy;
+            });
+          },
+        });
+        fileObjs.push({
+          url: json.secure_url,
+          name: item.file.name,
+          bytes: item.file.size,
+        });
       }
-      return;
-    }
 
-    // text only
-    onSendMessage({ content: messageInput.trim(), files: [] });
+      onSendMessage({
+        content: hasText ? messageInput.trim() : "",
+        files: fileObjs,
+      });
+    } catch (e) {
+      console.error("Failed to upload files", e);
+    } finally {
+      clearAllPreviews();
+    }
   };
 
   return (
@@ -239,7 +186,6 @@ export default function MessageInput({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           multiple
           className="hidden"
           onChange={handleFilesSelected}
