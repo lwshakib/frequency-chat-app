@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Message } from "@/types";
 import {
   Download,
@@ -6,17 +7,17 @@ import {
   FileSpreadsheet,
   FileText,
 } from "lucide-react";
+import AudioPlayer from "react-h5-audio-player";
+import "react-h5-audio-player/lib/styles.css";
 
 export default function MessagesList({
   messages,
   isCurrentUser,
-  getAvatarColor,
   getInitials,
   formatMessageTime,
 }: {
   messages: Message[];
   isCurrentUser: (senderId: string) => boolean;
-  getAvatarColor: (id: string) => string;
   getInitials: (name: string) => string;
   formatMessageTime: (date: Date) => string;
 }) {
@@ -63,15 +64,17 @@ export default function MessagesList({
               isCurrentUser(message.senderId) ? "flex-row-reverse" : "flex-row"
             } items-end space-x-2`}
           >
-            <div
-              className={`w-8 h-8 rounded-full ${getAvatarColor(
-                message.senderId
-              )} flex items-center justify-center flex-shrink-0`}
-            >
-              <span className="text-xs text-white font-medium">
-                {getInitials(message.sender.name || message.sender.email)}
-              </span>
-            </div>
+            {!isCurrentUser(message.senderId) && (
+              <Avatar className="h-8 w-8 flex-shrink-0">
+                <AvatarImage
+                  src={message.sender?.imageUrl || undefined}
+                  alt={message.sender?.name || message.sender?.email || "User"}
+                />
+                <AvatarFallback className="text-xs font-medium">
+                  {getInitials(message.sender.name || message.sender.email)}
+                </AvatarFallback>
+              </Avatar>
+            )}
             <div
               className={`px-4 py-2 rounded-2xl ${
                 isCurrentUser(message.senderId)
@@ -129,17 +132,19 @@ export default function MessagesList({
                             </div>
                           </div>
                         ) : isAudio ? (
-                          <div className="relative inline-flex items-center gap-2 rounded border bg-muted/40 px-2 py-2 w-[320px]">
-                            <audio controls className="w-full">
-                              <source src={url} />
-                              Your browser does not support the audio element.
-                            </audio>
-                            <div className="absolute top-1 right-1 flex gap-1">
+                          <div className="inline-flex flex-col gap-1 rounded border bg-muted/40 px-2 py-2 w-[320px]">
+                            <AudioPlayer
+                              src={url}
+                              // layout="horizontal-reverse"
+                              customAdditionalControls={[]}
+                              autoPlayAfterSrcChange={false}
+                            />
+                            <div className="flex gap-1 justify-end">
                               <a
                                 href={url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-background/60 border"
                                 aria-label="Open audio in new tab"
                                 title="Open"
                               >
@@ -150,7 +155,7 @@ export default function MessagesList({
                               <a
                                 href={url}
                                 download
-                                className="inline-flex items-center justify-center h-7 w-7 rounded bg-background/80 hover:bg-background border"
+                                className="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-background/60 border"
                                 aria-label="Download audio"
                                 title="Download"
                               >
