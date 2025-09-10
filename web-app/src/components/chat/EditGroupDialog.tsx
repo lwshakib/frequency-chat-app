@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search } from "lucide-react";
+import * as React from "react";
 
 export default function EditGroupDialog({
   open,
@@ -16,6 +18,9 @@ export default function EditGroupDialog({
   setEditName,
   editDescription,
   setEditDescription,
+  editImageUrl,
+  setEditImageUrl,
+  setEditImageFile,
   editPanel,
   setEditPanel,
   addMemberSearch,
@@ -39,6 +44,9 @@ export default function EditGroupDialog({
   setEditName: (v: string) => void;
   editDescription: string;
   setEditDescription: (v: string) => void;
+  editImageUrl: string;
+  setEditImageUrl: (v: string) => void;
+  setEditImageFile: (f: File | null) => void;
   editPanel: "addMember" | "updateAdmins" | "removeUsers";
   setEditPanel: (v: "addMember" | "updateAdmins" | "removeUsers") => void;
   addMemberSearch: string;
@@ -60,6 +68,17 @@ export default function EditGroupDialog({
   currentUserId?: string;
   saveGroupEdits: () => void;
 }) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const onPickImage = () => fileInputRef.current?.click();
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] || null;
+    setEditImageFile(f);
+    if (f) {
+      const url = URL.createObjectURL(f);
+      setEditImageUrl(url);
+    }
+    e.currentTarget.value = "";
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
@@ -67,6 +86,30 @@ export default function EditGroupDialog({
           <DialogTitle>Edit Group Details</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          <div className="flex items-center justify-center">
+            <div className="relative">
+              <Avatar
+                className="w-20 h-20 cursor-pointer"
+                onClick={onPickImage}
+                title="Click to change image"
+              >
+                <AvatarImage
+                  src={editImageUrl || undefined}
+                  alt={editName || "Group"}
+                />
+                <AvatarFallback>
+                  {(editName || "G").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={onFileChange}
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Group Name</label>
             <Input

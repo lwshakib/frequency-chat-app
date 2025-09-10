@@ -17,6 +17,7 @@ import { useSocket } from "@/hooks/useSocket";
 import {
   createOneToOne,
   deleteConversation,
+  getCloudinaryAuth,
   getMessages,
   getUsers,
   updateGroup,
@@ -63,6 +64,8 @@ export default function ChatPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
   const [editName, setEditName] = React.useState("");
   const [editDescription, setEditDescription] = React.useState("");
+  const [editImageUrl, setEditImageUrl] = React.useState("");
+  const [editImageFile, setEditImageFile] = React.useState<File | null>(null);
   const [editAdmins, setEditAdmins] = React.useState<Set<string>>(new Set());
   const [editMembers, setEditMembers] = React.useState<
     { clerkId: string; name?: string | null; email?: string }[]
@@ -142,6 +145,8 @@ export default function ChatPage() {
     if (!selectedConversation) return;
     setEditName(selectedConversation.name || "");
     setEditDescription(selectedConversation.description || "");
+    setEditImageUrl(selectedConversation.imageUrl || "");
+    setEditImageFile(null);
     const adminIds = new Set<string>(
       selectedConversation.admins?.map((a) => a.clerkId) || []
     );
@@ -264,10 +269,31 @@ export default function ChatPage() {
             updatedAt: new Date(),
           } as unknown as Conversation["users"][number]);
     });
+    // Upload new image if provided
+    let finalImageUrl = editImageUrl.trim() || undefined;
+    if (editImageFile) {
+      try {
+        const auth = await getCloudinaryAuth();
+        const form = new FormData();
+        form.append("file", editImageFile);
+        form.append("api_key", auth.apiKey);
+        form.append("timestamp", String(auth.timestamp));
+        form.append("folder", auth.folder);
+        form.append("signature", auth.signature);
+        const uploadUrl = `https://api.cloudinary.com/v1_1/${auth.cloudName}/auto/upload`;
+        const res = await fetch(uploadUrl, { method: "POST", body: form });
+        const data = await res.json();
+        if (data?.secure_url) finalImageUrl = data.secure_url as string;
+      } catch (e) {
+        console.error("Failed to upload new group image", e);
+      }
+    }
+
     const optimisticConversation: Conversation = {
       ...prevConversation,
       name: editName,
       description: editDescription,
+      imageUrl: finalImageUrl || null,
       users: usersOptimistic as unknown as Conversation["users"],
       admins: adminsOptimistic,
     };
@@ -287,6 +313,7 @@ export default function ChatPage() {
         requesterId: user.id,
         name: editName,
         description: editDescription,
+        imageUrl: finalImageUrl,
         addMemberIds,
         removeMemberIds,
         addAdminIds,
@@ -548,6 +575,9 @@ export default function ChatPage() {
         setEditName={setEditName}
         editDescription={editDescription}
         setEditDescription={setEditDescription}
+        editImageUrl={editImageUrl}
+        setEditImageUrl={setEditImageUrl}
+        setEditImageFile={setEditImageFile}
         editPanel={editPanel}
         setEditPanel={(v) => setEditPanel(v)}
         addMemberSearch={addMemberSearch}

@@ -8,6 +8,7 @@ import CreateDialog from "@/components/sidebar/CreateDialog";
 import SidebarHeaderBar from "@/components/sidebar/SidebarHeaderBar";
 import SidebarUserFooter from "@/components/sidebar/SidebarUserFooter";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
@@ -178,7 +179,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         }
       />
       <SidebarContent>
-        <div className="p-4 space-y-4">
+        <div className="p-4 h-full flex flex-col gap-4">
           <CreateDialog
             isOpen={isDialogOpen}
             onOpenChange={setIsDialogOpen}
@@ -240,13 +241,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <Input placeholder="Search contacts..." className="w-full" />
 
           {/* Groups and Contacts */}
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2 px-2 py-1">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">
-                Groups & Contacts
-              </span>
-            </div>
+          <div className="flex items-center space-x-2 px-2 py-1">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">
+              Groups & Contacts
+            </span>
+          </div>
+
+          <ScrollArea className="flex-1 min-h-0 pr-2">
             <div className="space-y-1">
               {isLoadingConversations ? (
                 <ConversationSkeleton />
@@ -265,7 +267,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 />
               )}
             </div>
-          </div>
+          </ScrollArea>
         </div>
       </SidebarContent>
       <SidebarUserFooter
