@@ -431,6 +431,7 @@ export default function ChatPage() {
               getDisplayName(selectedConversation, user?.id)
             )}
             isGroup={selectedConversation.type === "GROUP"}
+            imageUrl={selectedConversation.imageUrl || null}
             currentUserIsAdmin={currentUserIsAdmin}
             onOpenMembers={() => setIsMembersDialogOpen(true)}
             onOpenProfile={() => setIsProfileDialogOpen(true)}

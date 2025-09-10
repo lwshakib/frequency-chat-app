@@ -43,6 +43,7 @@ export const createGroup = async (
     type: "group",
     name: groupData.name,
     description: groupData.description,
+    imageUrl: groupData.imageUrl,
     ids: groupData.userIds,
     adminId: groupData.adminId,
   });
@@ -76,6 +77,7 @@ export const updateGroup = async (
       requesterId: payload.requesterId,
       name: payload.name,
       description: payload.description,
+      imageUrl: payload.imageUrl,
       addMemberIds: payload.addMemberIds,
       removeMemberIds: payload.removeMemberIds,
       addAdminIds: payload.addAdminIds,

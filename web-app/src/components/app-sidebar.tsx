@@ -14,6 +14,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useSocket } from "@/hooks/useSocket";
 import {
   createGroup,
+  getCloudinaryAuth,
   getConversationById,
   getConversations,
   getUsers,
@@ -41,6 +42,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Group creation state
   const [groupName, setGroupName] = React.useState("");
   const [groupDescription, setGroupDescription] = React.useState("");
+  const [groupImageUrl, setGroupImageUrl] = React.useState<string>("");
+  const [groupImageFile, setGroupImageFile] = React.useState<File | null>(null);
   const [selectedUsers, setSelectedUsers] = React.useState<User[]>([]);
   const [userSearch, setUserSearch] = React.useState("");
   const [availableUsers, setAvailableUsers] = React.useState<User[]>([]);
@@ -88,10 +91,30 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
     setIsCreatingGroup(true);
     try {
+      // If user selected a file, upload now and get URL
+      let finalImageUrl: string | undefined = groupImageUrl.trim() || undefined;
+      if (groupImageFile) {
+        try {
+          const auth = await getCloudinaryAuth();
+          const form = new FormData();
+          form.append("file", groupImageFile);
+          form.append("api_key", auth.apiKey);
+          form.append("timestamp", String(auth.timestamp));
+          form.append("folder", auth.folder);
+          form.append("signature", auth.signature);
+          const uploadUrl = `https://api.cloudinary.com/v1_1/${auth.cloudName}/auto/upload`;
+          const res = await fetch(uploadUrl, { method: "POST", body: form });
+          const data = await res.json();
+          if (data?.secure_url) finalImageUrl = data.secure_url as string;
+        } catch (e) {
+          console.error("Failed to upload group image", e);
+        }
+      }
       const userIds = [user.id, ...selectedUsers.map((u) => u.clerkId)];
       const groupData = {
         name: groupName.trim(),
         description: groupDescription.trim() || undefined,
+        imageUrl: finalImageUrl,
         userIds,
         adminId: user.id,
       };
@@ -103,6 +126,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       // Reset form
       setGroupName("");
       setGroupDescription("");
+      setGroupImageUrl("");
+      setGroupImageFile(null);
       setSelectedUsers([]);
       setUserSearch("");
 
@@ -202,6 +227,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             setGroupName={setGroupName}
             groupDescription={groupDescription}
             setGroupDescription={setGroupDescription}
+            groupImageUrl={groupImageUrl}
+            setGroupImageUrl={setGroupImageUrl}
+            groupImageFile={groupImageFile}
+            setGroupImageFile={setGroupImageFile}
             selectedUsers={selectedUsers}
             addUser={addUser}
             removeUser={removeUser}

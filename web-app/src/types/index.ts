@@ -45,6 +45,7 @@ export interface Conversation {
   id: string;
   name: string | null;
   description: string | null;
+  imageUrl?: string | null;
   type: CONVERSATION_TYPE;
   users: User[];
   admins: { clerkId: string; name: string | null }[];
@@ -87,6 +88,7 @@ export interface CreateMessageResponse {
 export interface CreateGroupRequest {
   name: string;
   description?: string;
+  imageUrl?: string;
   userIds: string[];
   adminId: string;
 }
@@ -100,6 +102,7 @@ export interface UpdateGroupRequest {
   requesterId: string;
   name?: string;
   description?: string;
+  imageUrl?: string;
   addMemberIds?: string[];
   removeMemberIds?: string[];
   addAdminIds?: string[];

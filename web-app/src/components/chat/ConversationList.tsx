@@ -108,6 +108,12 @@ export default function ConversationList({
                   alt={getDisplayName()}
                   className="w-6 h-6 rounded-full object-cover"
                 />
+              ) : conversation.type === "GROUP" && conversation.imageUrl ? (
+                <img
+                  src={conversation.imageUrl}
+                  alt={getDisplayName()}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
               ) : (
                 <div
                   className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center`}

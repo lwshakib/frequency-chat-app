@@ -60,6 +60,11 @@ export default function MessagesArea({
                 conversationId={conversation.id}
                 displayName={getDisplayName(conversation)}
                 displayDescription={getDisplayDescription(conversation)}
+                imageUrl={
+                  conversation.type === "GROUP"
+                    ? conversation.imageUrl || null
+                    : null
+                }
               />
             ) : (
               <>

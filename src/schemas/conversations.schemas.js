@@ -16,6 +16,7 @@ export const CreateConversationSchema = z
       .string()
       .max(500, "Description must be less than 500 characters")
       .optional(),
+    imageUrl: z.string().url().optional(),
     adminId: z.string().optional(),
   })
   .refine(

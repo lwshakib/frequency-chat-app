@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { User } from "@/types";
-import { Search, UserPlus, Users, X } from "lucide-react";
+import { Search, Upload, UserPlus, Users, X } from "lucide-react";
+import * as React from "react";
 
 type CreateDialogProps = {
   isOpen: boolean;
@@ -32,6 +33,10 @@ type CreateDialogProps = {
   removeUser: (userId: string) => void;
   onCreateGroup: () => void;
   isCreatingGroup: boolean;
+  groupImageUrl?: string;
+  setGroupImageUrl?: (v: string) => void;
+  groupImageFile?: File | null;
+  setGroupImageFile?: (f: File | null) => void;
 };
 
 export default function CreateDialog({
@@ -50,7 +55,47 @@ export default function CreateDialog({
   removeUser,
   onCreateGroup,
   isCreatingGroup,
+  groupImageUrl,
+  setGroupImageUrl,
+  groupImageFile,
+  setGroupImageFile,
 }: CreateDialogProps) {
+  const [previewUrl, setPreviewUrl] = React.useState<string>("");
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    let objectUrl: string | null = null;
+    if (groupImageUrl && groupImageUrl.trim().length > 0) {
+      setPreviewUrl(groupImageUrl);
+    } else if (groupImageFile) {
+      objectUrl = URL.createObjectURL(groupImageFile);
+      setPreviewUrl(objectUrl);
+    } else {
+      setPreviewUrl("");
+    }
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [groupImageUrl, groupImageFile]);
+  const handleFiles = (files: FileList | null) => {
+    if (!files || files.length === 0 || !setGroupImageFile) return;
+    const file = files[0];
+    setGroupImageFile(file);
+    setGroupImageUrl?.("");
+  };
+
+  const onDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await handleFiles(e.dataTransfer.files);
+  };
+
+  const onSelectFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    await handleFiles(e.target.files);
+    // reset value so selecting the same file again re-triggers change
+    e.target.value = "";
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -59,7 +104,7 @@ export default function CreateDialog({
           Create Contact
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-w-[90vw] w-full">
         <DialogHeader>
           <DialogTitle>Create New</DialogTitle>
         </DialogHeader>
@@ -138,6 +183,66 @@ export default function CreateDialog({
                 value={groupDescription}
                 onChange={(e) => setGroupDescription(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Group Image (Optional)</Label>
+              <div
+                className="flex items-center gap-4 rounded-md border p-4 hover:bg-muted/40 transition"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onDrop={onDrop}
+              >
+                <div className="flex-shrink-0">
+                  {previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt="Group"
+                      className="w-12 h-12 rounded object-cover"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 rounded bg-muted flex items-center justify-center">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-medium">
+                        Upload group image
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Drag & drop, or use the button to choose a file
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={onSelectFile}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        Choose file
+                      </Button>
+                    </div>
+                  </div>
+                  {groupImageUrl && (
+                    <div className="mt-2 text-xs text-muted-foreground break-all max-w-full">
+                      {groupImageUrl}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Add Members</Label>

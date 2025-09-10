@@ -62,6 +62,7 @@ export const getConversations = async (req, res) => {
       id: true,
       name: true,
       description: true,
+      imageUrl: true,
       type: true,
       lastMessageId: true,
       updatedAt: true,
@@ -143,7 +144,7 @@ export const getConversationById = async (req, res) => {
 };
 
 export const createConversation = async (req, res) => {
-  const { ids, type, name, description, adminId } = req.body;
+  const { ids, type, name, description, imageUrl, adminId } = req.body;
 
   // Validate request body using Zod schema
   const validationResult = CreateConversationSchema.safeParse({
@@ -151,6 +152,7 @@ export const createConversation = async (req, res) => {
     type,
     name,
     description,
+    imageUrl,
     adminId,
   });
 
@@ -168,6 +170,7 @@ export const createConversation = async (req, res) => {
     type: validatedType,
     name: validatedName,
     description: validatedDescription,
+    imageUrl: validatedImageUrl,
   } = validatedData;
 
   if (validatedType === "one_to_one") {
@@ -205,6 +208,7 @@ export const createConversation = async (req, res) => {
         },
         type: validatedType.toUpperCase(),
         name: validatedName,
+        imageUrl: validatedImageUrl ?? null,
       },
       include: {
         lastMessage: true,
@@ -226,6 +230,7 @@ export const createConversation = async (req, res) => {
         type: validatedType.toUpperCase(),
         name: validatedName,
         description: validatedDescription,
+        imageUrl: validatedImageUrl ?? null,
         admins: {
           create: {
             userId: adminId,
@@ -300,6 +305,7 @@ export const updateConversation = async (req, res) => {
       requesterId,
       name,
       description,
+      imageUrl,
       addMemberIds = [],
       removeMemberIds = [],
       addAdminIds = [],
@@ -344,6 +350,7 @@ export const updateConversation = async (req, res) => {
     const data = {};
     if (typeof name === "string") data.name = name;
     if (typeof description === "string") data.description = description;
+    if (typeof imageUrl === "string") data.imageUrl = imageUrl;
 
     if (addMemberIds.length || removeMemberIds.length) {
       data.users = {
@@ -390,7 +397,7 @@ export const updateConversation = async (req, res) => {
       );
     }
 
-    // Apply conversation updates (name/description/users)
+    // Apply conversation updates (name/description/image/users)
     const updatedConversation = Object.keys(data).length
       ? await prisma.conversation.update({
           where: { id },

@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ export default function ChatHeader({
   avatarColorClass,
   initials,
   isGroup,
+  imageUrl,
   currentUserIsAdmin,
   onOpenMembers,
   onOpenProfile,
@@ -26,6 +28,7 @@ export default function ChatHeader({
   avatarColorClass: string;
   initials: string;
   isGroup: boolean;
+  imageUrl?: string | null;
   currentUserIsAdmin: boolean;
   onOpenMembers: () => void;
   onOpenProfile: () => void;
@@ -43,11 +46,22 @@ export default function ChatHeader({
 
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div
-              className={`w-10 h-10 rounded-full ${avatarColorClass} flex items-center justify-center`}
-            >
-              <span className="text-sm text-white font-medium">{initials}</span>
-            </div>
+            {isGroup && imageUrl ? (
+              <Avatar className="w-10 h-10">
+                <AvatarImage src={imageUrl || undefined} alt={title} />
+                <AvatarFallback className={`${avatarColorClass} text-white`}>
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <div
+                className={`w-10 h-10 rounded-full ${avatarColorClass} flex items-center justify-center`}
+              >
+                <span className="text-sm text-white font-medium">
+                  {initials}
+                </span>
+              </div>
+            )}
             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-background rounded-full"></div>
           </div>
           <div className="flex flex-col">
