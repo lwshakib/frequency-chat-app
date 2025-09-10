@@ -1,6 +1,6 @@
 import Redis from "ioredis";
 import { Server } from "socket.io";
-import { produceMessage } from "./kafka.js";
+import { produceMessage, produceUserPresence } from "./kafka.js";
 
 const pub = new Redis({
   host: process.env.REDIS_HOST,
@@ -33,9 +33,27 @@ class SocketService {
     const io = this.io;
     io.on("connection", (socket) => {
       console.log("A user connected with id : ", socket.id);
-      socket.on("join:server", (id) => {
+      socket.on("join:server", async (id) => {
+        if (!id) return;
         socket.join(id);
+        // store clerkId on the socket for later (e.g., on disconnect)
+        socket.data.clerkId = id;
         console.log("A user joined the server with id : ", socket.id);
+        try {
+          const ts = new Date().toISOString();
+          await produceUserPresence({
+            clerkId: id,
+            isOnline: true,
+            lastOnlineAt: ts,
+          });
+          io.emit("presence:update", {
+            clerkId: id,
+            isOnline: true,
+            lastOnlineAt: ts,
+          });
+        } catch (e) {
+          console.error("Failed to produce presence (join)", e);
+        }
       });
 
       socket.on("event:message", async (data) => {
@@ -81,8 +99,25 @@ class SocketService {
         } catch {}
       });
 
-      socket.on("disconnect", () => {
-        console.log("A user disconnected with id : ", socket.id);
+      socket.on("disconnect", async () => {
+        const clerkId = socket.data?.clerkId;
+        console.log("A user disconnected", { socketId: socket.id, clerkId });
+        if (!clerkId) return;
+        try {
+          const ts = new Date().toISOString();
+          await produceUserPresence({
+            clerkId,
+            isOnline: false,
+            lastOnlineAt: ts,
+          });
+          io.emit("presence:update", {
+            clerkId,
+            isOnline: false,
+            lastOnlineAt: ts,
+          });
+        } catch (e) {
+          console.error("Failed to produce presence (disconnect)", e);
+        }
       });
     });
     sub.on("message", async (channel, data) => {

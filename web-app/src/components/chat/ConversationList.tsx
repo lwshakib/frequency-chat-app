@@ -31,6 +31,10 @@ export default function ConversationList({
         const otherUsers = conversation.users.filter(
           (u) => u.clerkId !== (currentUserId || "")
         );
+        const otherUser =
+          conversation.type === "ONE_TO_ONE" && otherUsers.length > 0
+            ? otherUsers[0]
+            : undefined;
 
         const getDisplayName = () => {
           if (conversation.name) return conversation.name;
@@ -60,7 +64,15 @@ export default function ConversationList({
         const getLastMessage = () => {
           const typing = getTypingLabel();
           if (typing) return typing;
-          if (conversation.lastMessage) return conversation.lastMessage;
+          const lm = conversation.lastMessage as unknown as
+            | { content?: string }
+            | string
+            | null
+            | undefined;
+          if (lm && typeof lm === "object" && "content" in lm && lm.content) {
+            return lm.content as string;
+          }
+          if (typeof lm === "string") return lm;
           return "No messages yet";
         };
 
@@ -89,12 +101,29 @@ export default function ConversationList({
             }`}
             onClick={() => onClickConversation(conversation)}
           >
-            <div
-              className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center mr-2 flex-shrink-0`}
-            >
-              <span className="text-xs text-white font-medium">
-                {getInitials(getDisplayName())}
-              </span>
+            <div className="relative mr-2 flex-shrink-0">
+              {conversation.type === "ONE_TO_ONE" && otherUser?.imageUrl ? (
+                <img
+                  src={otherUser.imageUrl}
+                  alt={getDisplayName()}
+                  className="w-6 h-6 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center`}
+                >
+                  <span className="text-xs text-white font-medium">
+                    {getInitials(getDisplayName())}
+                  </span>
+                </div>
+              )}
+              {conversation.type === "ONE_TO_ONE" && otherUser ? (
+                <span
+                  className={`absolute -bottom-0.5 -right-0.5 block h-2 w-2 rounded-full ring-2 ring-background ${
+                    otherUser.isOnline ? "bg-green-500" : "bg-red-500"
+                  }`}
+                />
+              ) : null}
             </div>
             <div className="flex-1 min-w-0 text-left">
               <div className="text-sm font-medium">{getDisplayName()}</div>

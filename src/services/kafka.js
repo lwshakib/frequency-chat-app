@@ -1,5 +1,4 @@
 import dotenv from "dotenv";
-import fs from "fs";
 import { Kafka } from "kafkajs";
 import prisma from "./prisma.js";
 
@@ -32,6 +31,7 @@ const kafka = new Kafka({
 
 let producer = null;
 let consumer = null;
+let presenceConsumer = null;
 
 export async function createProducer() {
   if (producer) return producer;
@@ -47,6 +47,16 @@ export async function produceMessage(data) {
   await producer.send({
     messages: [{ key: `message-${Date.now()}`, value: data }],
     topic: "MESSAGES",
+  });
+  return true;
+}
+
+export async function produceUserPresence(payload) {
+  const producer = await createProducer();
+  const value = JSON.stringify(payload);
+  await producer.send({
+    messages: [{ key: `presence-${payload.clerkId}-${Date.now()}`, value }],
+    topic: "USER_PRESENCE",
   });
   return true;
 }
@@ -139,6 +149,91 @@ export async function startMessageConsumer() {
   }
 }
 
+export async function startPresenceConsumer() {
+  console.log("Starting Kafka presence consumer...");
+
+  presenceConsumer = kafka.consumer({
+    groupId: "presence",
+    sessionTimeout: 30000,
+    heartbeatInterval: 3000,
+    maxWaitTimeInMs: 5000,
+    retry: {
+      initialRetryTime: 100,
+      retries: 8,
+      maxRetryTime: 30000,
+    },
+  });
+
+  presenceConsumer.on("consumer.crash", (event) => {
+    console.error("Presence consumer crashed:", event.payload);
+  });
+
+  presenceConsumer.on("consumer.disconnect", (event) => {
+    console.log("Presence consumer disconnected:", event.payload);
+  });
+
+  presenceConsumer.on("consumer.stop", (event) => {
+    console.log("Presence consumer stopped:", event.payload);
+  });
+
+  try {
+    await presenceConsumer.connect();
+    console.log("Presence consumer connected successfully");
+
+    await presenceConsumer.subscribe({
+      topic: "USER_PRESENCE",
+      fromBeginning: false,
+    });
+    console.log("Presence consumer subscribed to USER_PRESENCE topic");
+
+    await presenceConsumer.run({
+      autoCommit: true,
+      autoCommitInterval: 5000,
+      autoCommitThreshold: 100,
+      eachMessage: async ({ message, pause, heartbeat }) => {
+        try {
+          await heartbeat();
+
+          if (!message.value) {
+            console.log("Received empty presence message, skipping");
+            return;
+          }
+          console.log(message.value);
+
+          const presence = JSON.parse(message.value);
+          const { clerkId, isOnline, lastOnlineAt } = presence || {};
+          if (!clerkId) return;
+
+          await prisma.user.update({
+            where: { clerkId },
+            data: {
+              isOnline: Boolean(isOnline),
+              lastOnlineAt: lastOnlineAt ? new Date(lastOnlineAt) : new Date(),
+            },
+          });
+        } catch (err) {
+          console.error("Error processing presence:", err);
+          console.log(
+            "Pausing presence consumer for 10 seconds before retry..."
+          );
+          pause();
+          setTimeout(() => {
+            console.log("Resuming presence consumer...");
+            presenceConsumer.resume([{ topic: "USER_PRESENCE" }]);
+          }, 10 * 1000);
+        }
+      },
+    });
+
+    console.log(
+      "Presence consumer is running and processing presence messages"
+    );
+  } catch (error) {
+    console.error("Failed to start presence consumer:", error);
+    throw error;
+  }
+}
+
 export async function stopMessageConsumer() {
   if (consumer) {
     try {
@@ -166,6 +261,15 @@ export async function stopProducer() {
 export async function gracefulShutdown() {
   console.log("Gracefully shutting down Kafka services...");
   await Promise.all([stopMessageConsumer(), stopProducer()]);
+  if (presenceConsumer) {
+    try {
+      console.log("Stopping Kafka presence consumer...");
+      await presenceConsumer.disconnect();
+      console.log("Kafka presence consumer stopped successfully");
+    } catch (error) {
+      console.error("Error stopping Kafka presence consumer:", error);
+    }
+  }
 }
 
 export default kafka;

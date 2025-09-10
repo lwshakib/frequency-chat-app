@@ -7,6 +7,10 @@ import { SocketContext, type SocketContextType } from "./socket-context";
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<SocketContextType["socket"]>();
+  const [selfOnline, setSelfOnline] = useState<boolean>(false);
+  const [selfLastOnlineAt, setSelfLastOnlineAt] = useState<
+    string | undefined
+  >();
   const {
     selectedConversation,
     conversations,
@@ -134,14 +138,30 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
+  // Create socket once per user session
   useEffect(() => {
-    const _socket = io(import.meta.env.VITE_API_URL);
+    if (!user?.id) return;
+    const _socket = io(import.meta.env.VITE_API_URL, {
+      transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: 5,
+    });
     setSocket(_socket);
+    _socket.emit("join:server", user.id);
+    return () => {
+      _socket.disconnect();
+      setSocket(undefined);
+    };
+  }, [user?.id]);
 
-    _socket.emit("join:server", user?.id);
-    _socket.on("message", onMessageRec);
-    _socket.on("create:group", onCreateGroup);
-    _socket.on("delete:conversation", (payload: { conversationId: string }) => {
+  // Bind listeners when socket is ready
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMessage = (msg: Message) => onMessageRec(msg);
+    const handleCreateGroup = (data: Conversation & { initiatorId?: string }) =>
+      onCreateGroup(data);
+    const handleDeleteConversation = (payload: { conversationId: string }) => {
       const { conversationId } = payload;
       const state = useChatStore.getState() as unknown as {
         conversations: Conversation[];
@@ -156,38 +176,111 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       if (state.selectedConversation?.id === conversationId) {
         state.setSelectedConversation(null);
       }
-    });
-    _socket.on(
-      "typing:start",
-      (payload: { conversationId: string; fromClerkId: string }) => {
-        if (payload.fromClerkId === user?.id) return;
-        const conv = useChatStore
-          .getState()
-          .conversations.find((c) => c.id === payload.conversationId);
-        if (!conv) return;
-        useChatStore
-          .getState()
-          .addTyping(payload.conversationId, payload.fromClerkId);
+    };
+    const handleTypingStart = (payload: {
+      conversationId: string;
+      fromClerkId: string;
+    }) => {
+      if (payload.fromClerkId === user?.id) return;
+      const conv = useChatStore
+        .getState()
+        .conversations.find((c) => c.id === payload.conversationId);
+      if (!conv) return;
+      useChatStore
+        .getState()
+        .addTyping(payload.conversationId, payload.fromClerkId);
+    };
+    const handleTypingStop = (payload: {
+      conversationId: string;
+      fromClerkId: string;
+    }) => {
+      if (payload.fromClerkId === user?.id) return;
+      const conv = useChatStore
+        .getState()
+        .conversations.find((c) => c.id === payload.conversationId);
+      if (!conv) return;
+      useChatStore
+        .getState()
+        .removeTyping(payload.conversationId, payload.fromClerkId);
+    };
+    const handlePresence = (payload: {
+      clerkId: string;
+      isOnline: boolean;
+      lastOnlineAt: string;
+    }) => {
+      console.log("presence:update", payload);
+      if (payload.clerkId === user?.id) {
+        setSelfOnline(payload.isOnline);
+        setSelfLastOnlineAt(payload.lastOnlineAt);
       }
-    );
-    _socket.on(
-      "typing:stop",
-      (payload: { conversationId: string; fromClerkId: string }) => {
-        if (payload.fromClerkId === user?.id) return;
-        const conv = useChatStore
-          .getState()
-          .conversations.find((c) => c.id === payload.conversationId);
-        if (!conv) return;
-        useChatStore
-          .getState()
-          .removeTyping(payload.conversationId, payload.fromClerkId);
+      try {
+        const state = useChatStore.getState() as unknown as {
+          conversations: Conversation[];
+          setConversations: (c: Conversation[]) => void;
+          selectedConversation: Conversation | null;
+          setSelectedConversation: (c: Conversation | null) => void;
+        };
+        // Update list conversations where one-to-one and includes this clerkId
+        const updatedList = state.conversations.map((conv) => {
+          if (conv.type !== "ONE_TO_ONE") return conv;
+          if (!conv.users.some((u) => u.clerkId === payload.clerkId))
+            return conv;
+          return {
+            ...conv,
+            users: conv.users.map((u) =>
+              u.clerkId === payload.clerkId
+                ? {
+                    ...u,
+                    isOnline: payload.isOnline,
+                    lastOnlineAt: payload.lastOnlineAt,
+                  }
+                : u
+            ),
+          };
+        });
+        state.setConversations(updatedList);
+
+        // Update selectedConversation similarly if one-to-one and contains clerkId
+        const sel = state.selectedConversation;
+        if (
+          sel &&
+          sel.type === "ONE_TO_ONE" &&
+          sel.users.some((u) => u.clerkId === payload.clerkId)
+        ) {
+          state.setSelectedConversation({
+            ...sel,
+            users: sel.users.map((u) =>
+              u.clerkId === payload.clerkId
+                ? {
+                    ...u,
+                    isOnline: payload.isOnline,
+                    lastOnlineAt: payload.lastOnlineAt,
+                  }
+                : u
+            ),
+          });
+        }
+      } catch (e) {
+        console.error("Failed to apply presence update to store", e);
       }
-    );
+    };
+
+    socket.on("message", handleMessage);
+    socket.on("create:group", handleCreateGroup);
+    socket.on("delete:conversation", handleDeleteConversation);
+    socket.on("typing:start", handleTypingStart);
+    socket.on("typing:stop", handleTypingStop);
+    socket.on("presence:update", handlePresence);
 
     return () => {
-      _socket.disconnect();
+      socket.off("message", handleMessage);
+      socket.off("create:group", handleCreateGroup);
+      socket.off("delete:conversation", handleDeleteConversation);
+      socket.off("typing:start", handleTypingStart);
+      socket.off("typing:stop", handleTypingStop);
+      socket.off("presence:update", handlePresence);
     };
-  }, [user?.id, onMessageRec, onCreateGroup]);
+  }, [socket, onMessageRec, onCreateGroup, user?.id]);
   return (
     <SocketContext.Provider
       value={{
@@ -197,6 +290,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         emitTypingStart,
         emitTypingStop,
         emitDeleteConversation,
+        selfOnline,
+        selfLastOnlineAt,
       }}
     >
       {children}

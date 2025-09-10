@@ -9,7 +9,11 @@ import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { authMiddleware } from "./middlewares/auth.middlewares.js";
 import router from "./routes/index.js";
-import { gracefulShutdown, startMessageConsumer } from "./services/kafka.js";
+import {
+  gracefulShutdown,
+  startMessageConsumer,
+  startPresenceConsumer,
+} from "./services/kafka.js";
 import SocketService from "./services/socket.js";
 
 dotenv.config();
@@ -77,6 +81,12 @@ const socketService = new SocketService();
 startMessageConsumer().catch((error) => {
   console.error("Failed to start Kafka consumer:", error);
   console.log("Application will continue without Kafka consumer");
+});
+
+// Start presence consumer with error handling
+startPresenceConsumer().catch((error) => {
+  console.error("Failed to start Kafka presence consumer:", error);
+  console.log("Application will continue without presence consumer");
 });
 
 socketService.io.attach(httpServer);

@@ -32,6 +32,8 @@ model User {
   name      String?
   email     String
   imageUrl  String?
+  isOnline  Boolean @default(false)
+  lastOnlineAt DateTime?
   messages  Message[]
   conversations Conversation[]
   adminConversations ConversationAdmin[]

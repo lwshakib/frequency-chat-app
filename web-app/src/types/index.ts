@@ -22,6 +22,8 @@ export interface User {
   name: string | null;
   email: string;
   imageUrl: string | null;
+  isOnline?: boolean;
+  lastOnlineAt?: string | Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -48,7 +50,7 @@ export interface Conversation {
   admins: { clerkId: string; name: string | null }[];
   messages: Message[];
   lastMessageId: string | null;
-  lastMessage: string | null;
+  lastMessage: { content: string } | string | null;
   createdAt: Date;
   updatedAt: Date;
 }

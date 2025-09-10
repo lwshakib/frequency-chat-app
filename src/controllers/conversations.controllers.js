@@ -58,13 +58,34 @@ export const getConversations = async (req, res) => {
 
   const conversations = await prisma.conversation.findMany({
     where: whereClause,
-    include: {
-      lastMessage: true,
-      users: true,
-      admins: {
-        include: {
-          user: true,
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      type: true,
+      lastMessageId: true,
+      updatedAt: true,
+      users: {
+        select: {
+          clerkId: true,
+          name: true,
+          imageUrl: true,
+          isOnline: true,
+          lastOnlineAt: true,
         },
+      },
+      admins: {
+        select: {
+          user: {
+            select: {
+              clerkId: true,
+              name: true,
+            },
+          },
+        },
+      },
+      lastMessage: {
+        select: { content: true },
       },
     },
     orderBy: {
@@ -72,42 +93,18 @@ export const getConversations = async (req, res) => {
     },
   });
 
-  // Transform conversations to include only the other user for one-to-one conversations
-  const transformedConversations = conversations.map((conversation) => {
-    const { createdAt, ...conversationWithoutCreatedAt } = conversation;
-    const transformedConversation = {
-      ...conversationWithoutCreatedAt,
-      lastMessage: conversation.lastMessage
-        ? conversation.lastMessage.content
-        : null,
-    };
-
-    if (conversation.type === "ONE_TO_ONE") {
-      // For one-to-one conversations, include only the other user with clerkId and name
-      const otherUser = conversation.users.find(
-        (user) => user.clerkId !== userId
-      );
-      return {
-        ...transformedConversation,
-        users: otherUser
-          ? [{ clerkId: otherUser.clerkId, name: otherUser.name }]
-          : [],
-      };
-    }
-    // For group conversations, include all users with only clerkId and admins
-    return {
-      ...transformedConversation,
-      users: conversation.users.map((user) => ({ clerkId: user.clerkId })),
-      admins: conversation.admins.map((admin) => ({
-        clerkId: admin.user.clerkId,
-        name: admin.user.name,
-      })),
-    };
-  });
+  // Minimal transform: keep lastMessage as object (content only), and flatten admin.user
+  const shaped = conversations.map((c) => ({
+    ...c,
+    admins: c.admins.map((a) => ({
+      clerkId: a.user.clerkId,
+      name: a.user.name,
+    })),
+  }));
 
   res.json({
     message: "Conversations fetched successfully",
-    conversations: transformedConversations,
+    conversations: shaped,
   });
 };
 

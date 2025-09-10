@@ -14,8 +14,10 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { SidebarFooter } from "@/components/ui/sidebar";
+import { SocketContext } from "@/contexts/socket-context";
 import { SignOutButton } from "@clerk/clerk-react";
 import { LogOut } from "lucide-react";
+import { useContext } from "react";
 
 type SidebarUserFooterProps = {
   imageUrl?: string | null;
@@ -32,20 +34,29 @@ export default function SidebarUserFooter({
   email,
   initial,
 }: SidebarUserFooterProps) {
+  const socketCtx = useContext(SocketContext);
+  const isOnline = socketCtx?.selfOnline;
   return (
     <SidebarFooter>
       <div className="p-4 border-t">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Avatar className="w-8 h-8">
-              <AvatarImage
-                src={imageUrl ?? undefined}
-                alt={fullName || "User"}
-              />
-              <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium">
-                {initial || "U"}
-              </AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="w-8 h-8">
+                <AvatarImage
+                  src={imageUrl ?? undefined}
+                  alt={fullName || "User"}
+                />
+                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-sm font-medium">
+                  {initial || "U"}
+                </AvatarFallback>
+              </Avatar>
+              {isOnline ? (
+                <span className="absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+              ) : (
+                <span className="absolute -bottom-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-background" />
+              )}
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
                 {fullName || firstName || "User"}
