@@ -36,7 +36,6 @@ class SocketService {
       socket.on("join:server", async (id) => {
         if (!id) return;
         socket.join(id);
-        // store clerkId on the socket for later (e.g., on disconnect)
         socket.data.clerkId = id;
         console.log("A user joined the server with id : ", socket.id);
         try {
@@ -116,6 +115,69 @@ class SocketService {
           const { conversationId, ringingBy, toClerkId } = payload || {};
           if (!conversationId || !ringingBy || !toClerkId) return;
           io.to(toClerkId).emit("call:ringing", { conversationId, ringingBy });
+        } catch {}
+      });
+
+      // WebRTC signaling
+      socket.on("webrtc:room", (payload) => {
+        try {
+          const { roomId, conversationId, members } = payload || {};
+          if (!roomId || !conversationId || !Array.isArray(members)) return;
+          socket.join(roomId);
+          io.to(members).emit("webrtc:room", { roomId, conversationId });
+        } catch {}
+      });
+      socket.on("webrtc:offer", (payload) => {
+        try {
+          const { roomId, conversationId, fromClerkId, toClerkId, offer } =
+            payload || {};
+          if (
+            !roomId ||
+            !conversationId ||
+            !fromClerkId ||
+            !toClerkId ||
+            !offer
+          )
+            return;
+          io.to(toClerkId).emit("webrtc:offer", {
+            roomId,
+            conversationId,
+            fromClerkId,
+            offer,
+          });
+        } catch {}
+      });
+      socket.on("webrtc:answer", (payload) => {
+        try {
+          const { roomId, conversationId, fromClerkId, toClerkId, answer } =
+            payload || {};
+          if (
+            !roomId ||
+            !conversationId ||
+            !fromClerkId ||
+            !toClerkId ||
+            !answer
+          )
+            return;
+          io.to(toClerkId).emit("webrtc:answer", {
+            roomId,
+            conversationId,
+            fromClerkId,
+            answer,
+          });
+        } catch {}
+      });
+      socket.on("webrtc:ice-candidate", (payload) => {
+        try {
+          const { conversationId, fromClerkId, toClerkId, candidate } =
+            payload || {};
+          if (!conversationId || !fromClerkId || !toClerkId || !candidate)
+            return;
+          io.to(toClerkId).emit("webrtc:ice-candidate", {
+            conversationId,
+            fromClerkId,
+            candidate,
+          });
         } catch {}
       });
 

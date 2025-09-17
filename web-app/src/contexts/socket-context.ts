@@ -62,6 +62,7 @@ export interface SocketContextType {
     at: number;
   };
   clearCallEvent: () => void;
+  sendRenegotiationOffer: (conversation: Conversation) => Promise<void>;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(

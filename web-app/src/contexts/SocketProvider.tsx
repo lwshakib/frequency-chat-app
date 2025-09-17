@@ -1,5 +1,6 @@
+import { usePeer } from "@/hooks/usePeer";
 import { useUser } from "@clerk/clerk-react";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import type { Conversation, Message } from "../types";
 import { useChatStore } from "./chat-context";
@@ -24,6 +25,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     incrementUnread,
   } = useChatStore();
   const { user } = useUser();
+  const { peer, createOffer, createAnswer, setRemoteDescriptionAnswer } =
+    usePeer();
+  const isMakingOfferRef = useRef<boolean>(false);
 
   const sendMessage = useCallback(
     (message: Message) => {
@@ -57,7 +61,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const onMessageRec = useCallback(
     (msg: Message) => {
       console.log(msg);
-      // Update conversation list last message and move to top
       try {
         const state = useChatStore.getState() as unknown as {
           conversations: Conversation[];
@@ -81,17 +84,15 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           ];
           state.setConversations(newList);
         }
-      } catch {
-        // noop
+      } catch (e) {
+        console.error("Failed to update conversation list on message", e);
       }
-      // If message is for currently open conversation, append to messages
       if (
         selectedConversation &&
         msg.conversationId === selectedConversation.id
       ) {
         setMessages((prev) => [...prev, msg]);
       } else {
-        // Otherwise increment unread for that conversation
         incrementUnread(msg.conversationId);
       }
     },
@@ -102,9 +103,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     (data: Conversation & { initiatorId?: string }) => {
       const conv = data as Conversation;
       setConversations([conv, ...conversations]);
-      console.log(conv);
-
-      // Only the initiator auto-selects
       if (data?.initiatorId && data.initiatorId === user?.id) {
         setSelectedConversation(conv);
       }
@@ -142,8 +140,32 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
+  const sendRenegotiationOffer = useCallback(
+    async (conversation: Conversation) => {
+      if (!socket || !user?.id) return;
+      const toClerkId = conversation.users
+        .map((u) => u.clerkId)
+        .find((id) => id !== user.id);
+      if (!toClerkId) return;
+      try {
+        const offer = await createOffer();
+        if (!offer) return;
+        socket.emit("webrtc:offer", {
+          roomId: conversation.id,
+          conversationId: conversation.id,
+          fromClerkId: user.id,
+          toClerkId,
+          offer,
+        });
+      } catch (e) {
+        console.error("Failed to send renegotiation offer", e);
+      }
+    },
+    [socket, user?.id, createOffer]
+  );
+
   const callToUserBySocket = useCallback(
-    (data: {
+    async (data: {
       event: string; // video-call, audio-call
       calledBy: {
         clerkId: string;
@@ -163,8 +185,34 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       };
     }) => {
       socket?.emit("call:user", data);
+      try {
+        const roomId = data.conversation.id;
+        const toClerkId = data.conversation.users
+          .map((u) => u.clerkId)
+          .find((id) => id !== data.calledBy.clerkId);
+        if (toClerkId) {
+          socket?.emit("webrtc:room", {
+            roomId,
+            conversationId: data.conversation.id,
+            members: data.conversation.users.map((u) => u.clerkId),
+          });
+          const offer = await createOffer();
+          if (offer) {
+            console.log("Sending offer:", offer);
+            socket?.emit("webrtc:offer", {
+              roomId,
+              conversationId: data.conversation.id,
+              fromClerkId: data.calledBy.clerkId,
+              toClerkId,
+              offer,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Failed to create room/send offer", e);
+      }
     },
-    [socket]
+    [socket, createOffer]
   );
 
   const acceptIncomingCall = useCallback(() => {
@@ -215,7 +263,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
-  // Create socket once per user session
   useEffect(() => {
     if (!user?.id) return;
     const _socket = io(import.meta.env.VITE_API_URL, {
@@ -231,7 +278,71 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user?.id]);
 
-  // Bind listeners when socket is ready
+  // Handle RTCPeerConnection negotiationneeded to renegotiate when tracks are added
+  useEffect(() => {
+    if (!peer || !socket) return;
+    const handler = async () => {
+      if (isMakingOfferRef.current) return;
+      if (peer.signalingState !== "stable") return;
+      isMakingOfferRef.current = true;
+      try {
+        if (selectedConversation) {
+          await sendRenegotiationOffer(selectedConversation);
+        }
+      } catch (e) {
+        console.error("negotiationneeded handler failed", e);
+      } finally {
+        isMakingOfferRef.current = false;
+      }
+    };
+    peer.onnegotiationneeded = handler;
+    return () => {
+      (peer as RTCPeerConnection).onnegotiationneeded = null;
+    };
+  }, [peer, socket, selectedConversation, sendRenegotiationOffer]);
+
+  // Bind ICE candidate emission
+  useEffect(() => {
+    if (!peer || !socket || !selectedConversation || !user?.id) return;
+    const onicecandidate = (ev: RTCPeerConnectionIceEvent) => {
+      const candidate = ev.candidate;
+      if (!candidate) return;
+      const toClerkId = selectedConversation.users
+        .map((u) => u.clerkId)
+        .find((id) => id !== user.id);
+      if (!toClerkId) return;
+      socket.emit("webrtc:ice-candidate", {
+        conversationId: selectedConversation.id,
+        fromClerkId: user.id,
+        toClerkId,
+        candidate,
+      });
+    };
+    peer.onicecandidate = onicecandidate;
+    return () => {
+      (peer as RTCPeerConnection).onicecandidate = null;
+    };
+  }, [peer, socket, selectedConversation, user?.id]);
+
+  useEffect(() => {
+    if (!socket || !peer) return;
+    const handleIceCandidate = async (payload: {
+      conversationId: string;
+      fromClerkId: string;
+      candidate: RTCIceCandidateInit;
+    }) => {
+      try {
+        await peer.addIceCandidate(payload.candidate);
+      } catch (e) {
+        console.error("Failed to add remote ICE candidate", e);
+      }
+    };
+    socket.on("webrtc:ice-candidate", handleIceCandidate);
+    return () => {
+      socket.off("webrtc:ice-candidate", handleIceCandidate);
+    };
+  }, [socket, peer]);
+
   useEffect(() => {
     if (!socket) return;
 
@@ -285,7 +396,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       isOnline: boolean;
       lastOnlineAt: string;
     }) => {
-      console.log("presence:update", payload);
       if (payload.clerkId === user?.id) {
         setSelfOnline(payload.isOnline);
         setSelfLastOnlineAt(payload.lastOnlineAt);
@@ -297,7 +407,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           selectedConversation: Conversation | null;
           setSelectedConversation: (c: Conversation | null) => void;
         };
-        // Update list conversations where one-to-one and includes this clerkId
         const updatedList = state.conversations.map((conv) => {
           if (conv.type !== "ONE_TO_ONE") return conv;
           if (!conv.users.some((u) => u.clerkId === payload.clerkId))
@@ -316,8 +425,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           };
         });
         state.setConversations(updatedList);
-
-        // Update selectedConversation similarly if one-to-one and contains clerkId
         const sel = state.selectedConversation;
         if (
           sel &&
@@ -361,7 +468,6 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       };
     }) => {
       setIncomingCall(payload);
-      // Inform caller that callee is ringing
       if (user?.id) {
         socket.emit("call:ringing", {
           conversationId: payload.conversation.id,
@@ -403,6 +509,43 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         at: Date.now(),
       });
     };
+    const handleWebrtcOffer = async (payload: {
+      roomId: string;
+      conversationId: string;
+      fromClerkId: string;
+      offer: RTCSessionDescriptionInit;
+    }) => {
+      try {
+        const answer = await createAnswer(payload.offer);
+        if (answer && user?.id) {
+          socket.emit("webrtc:answer", {
+            roomId: payload.roomId,
+            conversationId: payload.conversationId,
+            fromClerkId: user.id,
+            toClerkId: payload.fromClerkId,
+            answer,
+          });
+        }
+      } catch (e) {
+        console.error("Failed to create/send answer", e);
+      }
+    };
+    const handleWebrtcAnswer = async (payload: {
+      roomId: string;
+      conversationId: string;
+      fromClerkId: string;
+      answer: RTCSessionDescriptionInit;
+    }) => {
+      try {
+        if (peer && peer.signalingState !== "stable") {
+          // Wait a tick to avoid InvalidStateError
+          await new Promise((r) => setTimeout(r, 0));
+        }
+        await setRemoteDescriptionAnswer(payload.answer);
+      } catch (e) {
+        console.error("Failed to apply remote answer", e);
+      }
+    };
     socket.on("message", handleMessage);
     socket.on("create:group", handleCreateGroup);
     socket.on("delete:conversation", handleDeleteConversation);
@@ -413,6 +556,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     socket.on("call:accept", handleCallAccept);
     socket.on("call:cancel", handleCallCancel);
     socket.on("call:ringing", handleCallRinging);
+    socket.on("webrtc:offer", handleWebrtcOffer);
+    socket.on("webrtc:answer", handleWebrtcAnswer);
     return () => {
       socket.off("message", handleMessage);
       socket.off("create:group", handleCreateGroup);
@@ -424,8 +569,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off("call:accept", handleCallAccept);
       socket.off("call:cancel", handleCallCancel);
       socket.off("call:ringing", handleCallRinging);
+      socket.off("webrtc:offer", handleWebrtcOffer);
+      socket.off("webrtc:answer", handleWebrtcAnswer);
     };
-  }, [socket, onMessageRec, onCreateGroup, user?.id]);
+  }, [
+    socket,
+    onMessageRec,
+    onCreateGroup,
+    user?.id,
+    createAnswer,
+    setRemoteDescriptionAnswer,
+    peer,
+  ]);
   return (
     <SocketContext.Provider
       value={{
@@ -445,6 +600,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         cancelOutgoingCall,
         callEvent,
         clearCallEvent: () => setCallEvent(null),
+        sendRenegotiationOffer,
       }}
     >
       {children}

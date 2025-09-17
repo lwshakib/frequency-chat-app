@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { usePeer } from "@/hooks/usePeer";
 import { Phone, PhoneOff } from "lucide-react";
 import React from "react";
 
@@ -19,26 +20,81 @@ export default function CallOverlay({
 }) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
+  const remoteVideoRef = React.useRef<HTMLVideoElement | null>(null);
+  const [videoError, setVideoError] = React.useState<string | null>(null);
+  const { sendStream, remoteStream } = usePeer();
+
+  React.useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+      remoteVideoRef.current
+        .play()
+        .catch((err) => console.debug("autoplay fail remote", err));
+    }
+  }, [remoteStream]);
 
   React.useEffect(() => {
     let cancelled = false;
     const start = async () => {
       if (!startLocalVideo) return;
+      setVideoError(null);
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user",
+          },
+          audio: true,
         });
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
         }
         streamRef.current = stream;
+        try {
+          await sendStream(stream);
+        } catch (err) {
+          console.debug("sendStream failed", err);
+        }
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          try {
+            await videoRef.current.play();
+          } catch (err) {
+            console.debug("autoplay fail local", err);
+          }
         }
-      } catch (e) {
-        console.error("Failed to start local video", e);
+      } catch {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true,
+          });
+          if (cancelled) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          streamRef.current = stream;
+          try {
+            await sendStream(stream);
+          } catch (err) {
+            console.debug("sendStream failed (fallback)", err);
+          }
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            try {
+              await videoRef.current.play();
+            } catch (err) {
+              console.debug("autoplay fail local (fallback)", err);
+            }
+          }
+        } catch (e2) {
+          console.error("Failed to start local video", e2);
+          setVideoError(
+            "Camera/mic unavailable. Check permissions or if device is in use."
+          );
+        }
       }
     };
     start();
@@ -49,29 +105,48 @@ export default function CallOverlay({
         streamRef.current = null;
       }
     };
-  }, [startLocalVideo]);
+  }, [startLocalVideo, sendStream]);
 
   return (
     <div className="absolute top-0 left-0 w-screen h-screen z-50 bg-background/90 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt="caller"
-            className="w-24 h-24 rounded-full object-cover"
-          />
+        {remoteStream ? (
+          <div
+            className="rounded-md overflow-hidden bg-black"
+            style={{ width: 640, height: 360 }}
+          >
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          </div>
         ) : (
-          <div className="w-24 h-24 rounded-full bg-muted" />
+          <>
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt="caller"
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-muted" />
+            )}
+            <div className="text-foreground text-xl font-semibold text-center px-6">
+              {title}
+            </div>
+            {status ? (
+              <div className="text-muted-foreground text-sm">{status}</div>
+            ) : null}
+          </>
         )}
-        <div className="text-foreground text-xl font-semibold text-center px-6">
-          {title}
-        </div>
-        {status ? (
-          <div className="text-muted-foreground text-sm">{status}</div>
+        {videoError ? (
+          <div className="text-xs text-red-500">{videoError}</div>
         ) : null}
       </div>
 
-      {startLocalVideo && (
+      {startLocalVideo && !videoError && (
         <div
           className="absolute top-4 right-4 rounded-md overflow-hidden shadow-lg bg-black"
           style={{ width: 320, height: 180 }}
