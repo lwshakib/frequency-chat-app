@@ -52,6 +52,16 @@ export interface SocketContextType {
     };
   };
   clearIncomingCall: () => void;
+  acceptIncomingCall: () => void;
+  cancelIncomingCall: () => void;
+  cancelOutgoingCall: (conversation: Conversation, fromClerkId: string) => void;
+  callEvent: null | {
+    type: "ringing" | "accepted" | "cancelled";
+    conversationId: string;
+    byClerkId: string;
+    at: number;
+  };
+  clearCallEvent: () => void;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(

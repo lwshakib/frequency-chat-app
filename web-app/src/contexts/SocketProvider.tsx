@@ -13,6 +13,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   >();
   const [incomingCall, setIncomingCall] =
     useState<SocketContextType["incomingCall"]>(null);
+  const [callEvent, setCallEvent] =
+    useState<SocketContextType["callEvent"]>(null);
   const {
     selectedConversation,
     conversations,
@@ -165,6 +167,54 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
+  const acceptIncomingCall = useCallback(() => {
+    if (!socket || !incomingCall || !user?.id) return;
+    socket.emit("call:accept", {
+      conversationId: incomingCall.conversation.id,
+      acceptedBy: user.id,
+      toClerkId: incomingCall.calledBy.clerkId,
+    });
+    setIncomingCall(null);
+    setCallEvent({
+      type: "accepted",
+      conversationId: incomingCall.conversation.id,
+      byClerkId: user.id,
+      at: Date.now(),
+    });
+  }, [socket, incomingCall, user?.id]);
+
+  const cancelIncomingCall = useCallback(() => {
+    if (!socket || !incomingCall || !user?.id) return;
+    socket.emit("call:cancel", {
+      conversationId: incomingCall.conversation.id,
+      cancelledBy: user.id,
+      toClerkIds: [incomingCall.calledBy.clerkId],
+    });
+    setIncomingCall(null);
+    setCallEvent({
+      type: "cancelled",
+      conversationId: incomingCall.conversation.id,
+      byClerkId: user.id,
+      at: Date.now(),
+    });
+  }, [socket, incomingCall, user?.id]);
+
+  const cancelOutgoingCall = useCallback(
+    (conversation: Conversation, fromClerkId: string) => {
+      if (!socket) return;
+      const toClerkIds = conversation.users
+        .map((u) => u.clerkId)
+        .filter((id) => id !== fromClerkId);
+      if (toClerkIds.length === 0) return;
+      socket.emit("call:cancel", {
+        conversationId: conversation.id,
+        cancelledBy: fromClerkId,
+        toClerkIds,
+      });
+    },
+    [socket]
+  );
+
   // Create socket once per user session
   useEffect(() => {
     if (!user?.id) return;
@@ -311,6 +361,47 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       };
     }) => {
       setIncomingCall(payload);
+      // Inform caller that callee is ringing
+      if (user?.id) {
+        socket.emit("call:ringing", {
+          conversationId: payload.conversation.id,
+          ringingBy: user.id,
+          toClerkId: payload.calledBy.clerkId,
+        });
+      }
+    };
+    const handleCallAccept = (payload: {
+      conversationId: string;
+      acceptedBy: string;
+    }) => {
+      setCallEvent({
+        type: "accepted",
+        conversationId: payload.conversationId,
+        byClerkId: payload.acceptedBy,
+        at: Date.now(),
+      });
+    };
+    const handleCallCancel = (payload: {
+      conversationId: string;
+      cancelledBy: string;
+    }) => {
+      setCallEvent({
+        type: "cancelled",
+        conversationId: payload.conversationId,
+        byClerkId: payload.cancelledBy,
+        at: Date.now(),
+      });
+    };
+    const handleCallRinging = (payload: {
+      conversationId: string;
+      ringingBy: string;
+    }) => {
+      setCallEvent({
+        type: "ringing",
+        conversationId: payload.conversationId,
+        byClerkId: payload.ringingBy,
+        at: Date.now(),
+      });
     };
     socket.on("message", handleMessage);
     socket.on("create:group", handleCreateGroup);
@@ -319,6 +410,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     socket.on("typing:stop", handleTypingStop);
     socket.on("presence:update", handlePresence);
     socket.on("call:user", handleCallUser);
+    socket.on("call:accept", handleCallAccept);
+    socket.on("call:cancel", handleCallCancel);
+    socket.on("call:ringing", handleCallRinging);
     return () => {
       socket.off("message", handleMessage);
       socket.off("create:group", handleCreateGroup);
@@ -327,6 +421,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       socket.off("typing:stop", handleTypingStop);
       socket.off("presence:update", handlePresence);
       socket.off("call:user", handleCallUser);
+      socket.off("call:accept", handleCallAccept);
+      socket.off("call:cancel", handleCallCancel);
+      socket.off("call:ringing", handleCallRinging);
     };
   }, [socket, onMessageRec, onCreateGroup, user?.id]);
   return (
@@ -343,6 +440,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         callToUserBySocket,
         incomingCall,
         clearIncomingCall: () => setIncomingCall(null),
+        acceptIncomingCall,
+        cancelIncomingCall,
+        cancelOutgoingCall,
+        callEvent,
+        clearCallEvent: () => setCallEvent(null),
       }}
     >
       {children}

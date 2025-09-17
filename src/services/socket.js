@@ -91,6 +91,34 @@ class SocketService {
         } catch {}
       });
 
+      socket.on("call:accept", (payload) => {
+        try {
+          const { conversationId, acceptedBy, toClerkId } = payload || {};
+          if (!conversationId || !acceptedBy || !toClerkId) return;
+          io.to(toClerkId).emit("call:accept", { conversationId, acceptedBy });
+        } catch {}
+      });
+
+      socket.on("call:cancel", (payload) => {
+        try {
+          const { conversationId, cancelledBy, toClerkIds } = payload || {};
+          if (!conversationId || !cancelledBy || !Array.isArray(toClerkIds))
+            return;
+          io.to(toClerkIds).emit("call:cancel", {
+            conversationId,
+            cancelledBy,
+          });
+        } catch {}
+      });
+
+      socket.on("call:ringing", (payload) => {
+        try {
+          const { conversationId, ringingBy, toClerkId } = payload || {};
+          if (!conversationId || !ringingBy || !toClerkId) return;
+          io.to(toClerkId).emit("call:ringing", { conversationId, ringingBy });
+        } catch {}
+      });
+
       // Typing indicators
       socket.on("typing:start", (payload) => {
         try {

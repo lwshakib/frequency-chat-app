@@ -53,6 +53,11 @@ export default function ChatPage() {
     emitDeleteConversation,
     callToUserBySocket,
     incomingCall,
+    acceptIncomingCall,
+    cancelIncomingCall,
+    cancelOutgoingCall,
+    callEvent,
+    clearCallEvent,
   } = useSocket();
 
   // Message input state
@@ -89,6 +94,26 @@ export default function ChatPage() {
   const [callOverlayText, setCallOverlayText] = React.useState<string | null>(
     null
   );
+  const [inCall, setInCall] = React.useState<boolean>(false);
+
+  // Close/Update outgoing overlay when remote events arrive
+  React.useEffect(() => {
+    if (!callEvent || !selectedConversation) return;
+    if (callEvent.conversationId !== selectedConversation.id) return;
+    if (callEvent.type === "ringing") {
+      setCallOverlayText("Ringing...");
+      return;
+    }
+    if (callEvent.type === "accepted") {
+      setInCall(true);
+      setCallOverlayText(undefined as unknown as string); // hide status line, keep overlay
+      return;
+    }
+    // cancelled
+    setInCall(false);
+    setCallOverlayText(null);
+    clearCallEvent();
+  }, [callEvent, selectedConversation, clearCallEvent]);
 
   // Ref for scroll area
   const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
@@ -100,8 +125,8 @@ export default function ChatPage() {
         "[data-radix-scroll-area-viewport]"
       );
       if (scrollElement) {
-        scrollElement.scrollTo({
-          top: scrollElement.scrollHeight,
+        (scrollElement as HTMLElement).scrollTo({
+          top: (scrollElement as HTMLElement).scrollHeight,
           behavior: "smooth",
         });
       }
@@ -512,9 +537,8 @@ export default function ChatPage() {
                   })),
                 },
               });
-              setCallOverlayText(
-                `Calling ${getDisplayName(selectedConversation, user.id)}...`
-              );
+              setInCall(false);
+              setCallOverlayText("Calling...");
             }}
             onVideoCall={() => {
               if (!selectedConversation || !user) return;
@@ -537,9 +561,8 @@ export default function ChatPage() {
                   })),
                 },
               });
-              setCallOverlayText(
-                `Calling ${getDisplayName(selectedConversation, user.id)}...`
-              );
+              setInCall(false);
+              setCallOverlayText("Calling...");
             }}
           />
         )}
@@ -606,18 +629,46 @@ export default function ChatPage() {
         )}
       </SidebarInset>
 
-      {(callOverlayText || incomingCall) && (
+      {(callOverlayText || incomingCall || inCall) && (
         <CallOverlay
-          text={
-            callOverlayText ||
-            `${incomingCall?.calledBy?.name || "Someone"} is calling...`
+          title={
+            incomingCall
+              ? incomingCall.calledBy.name || "Unknown"
+              : getDisplayName(selectedConversation!, user?.id)
+          }
+          status={
+            inCall
+              ? undefined
+              : incomingCall
+              ? "is calling..."
+              : callOverlayText || "Calling..."
           }
           imageUrl={
             incomingCall?.calledBy?.imageUrl ||
             selectedConversation?.imageUrl ||
             undefined
           }
-          onCancel={() => setCallOverlayText(null)}
+          onCancel={() => {
+            if (incomingCall) {
+              cancelIncomingCall();
+              setInCall(false);
+            } else {
+              if (selectedConversation && user) {
+                cancelOutgoingCall(selectedConversation, user.id);
+              }
+              setInCall(false);
+              setCallOverlayText(null);
+            }
+          }}
+          onAccept={
+            incomingCall
+              ? () => {
+                  acceptIncomingCall();
+                  setInCall(true);
+                }
+              : undefined
+          }
+          startLocalVideo={inCall}
         />
       )}
 
