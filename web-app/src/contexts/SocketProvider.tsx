@@ -491,6 +491,14 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       conversationId: string;
       cancelledBy: string;
     }) => {
+      // Clear incoming call if it matches this conversation
+      setIncomingCall((prev) => {
+        if (prev && prev.conversation.id === payload.conversationId) {
+          return null;
+        }
+        return prev;
+      });
+      // Set cancel event to notify UI
       setCallEvent({
         type: "cancelled",
         conversationId: payload.conversationId,
