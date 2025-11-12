@@ -98,7 +98,25 @@ export default function ChatPage() {
 
   // Close/Update outgoing overlay when remote events arrive
   React.useEffect(() => {
-    if (!callEvent || !selectedConversation) return;
+    if (!callEvent) return;
+    
+    // Handle cancel events - close call for everyone
+    if (callEvent.type === "cancelled") {
+      // Close call if it matches the selected conversation or if we're in an active call
+      // (inCall means we're in a call, which should be for the selected conversation)
+      if (
+        (selectedConversation && callEvent.conversationId === selectedConversation.id) ||
+        inCall
+      ) {
+        setInCall(false);
+        setCallOverlayText(null);
+      }
+      clearCallEvent();
+      return;
+    }
+    
+    // For other events, require selected conversation
+    if (!selectedConversation) return;
     if (callEvent.conversationId !== selectedConversation.id) return;
     if (callEvent.type === "ringing") {
       setCallOverlayText("Ringing...");
@@ -109,11 +127,7 @@ export default function ChatPage() {
       setCallOverlayText(undefined as unknown as string); // hide status line, keep overlay
       return;
     }
-    // cancelled
-    setInCall(false);
-    setCallOverlayText(null);
-    clearCallEvent();
-  }, [callEvent, selectedConversation, clearCallEvent]);
+  }, [callEvent, selectedConversation, clearCallEvent, inCall]);
 
   // Ref for scroll area
   const scrollAreaRef = React.useRef<HTMLDivElement | null>(null);
@@ -651,13 +665,12 @@ export default function ChatPage() {
           onCancel={() => {
             if (incomingCall) {
               cancelIncomingCall();
-              setInCall(false);
+              // cancelIncomingCall already sets callEvent, which will trigger cleanup
             } else {
               if (selectedConversation && user) {
                 cancelOutgoingCall(selectedConversation, user.id);
+                // cancelOutgoingCall now sets callEvent, which will trigger cleanup via useEffect
               }
-              setInCall(false);
-              setCallOverlayText(null);
             }
           }}
           onAccept={

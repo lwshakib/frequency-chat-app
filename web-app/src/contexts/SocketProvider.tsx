@@ -233,17 +233,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   const cancelIncomingCall = useCallback(() => {
     if (!socket || !incomingCall || !user?.id) return;
-    // Send cancel to all participants in the conversation (for group calls)
-    const toClerkIds = incomingCall.conversation.users
-      .map((u) => u.clerkId)
-      .filter((id) => id !== user.id);
-    if (toClerkIds.length > 0) {
-      socket.emit("call:cancel", {
-        conversationId: incomingCall.conversation.id,
-        cancelledBy: user.id,
-        toClerkIds,
-      });
-    }
+    socket.emit("call:cancel", {
+      conversationId: incomingCall.conversation.id,
+      cancelledBy: user.id,
+      toClerkIds: [incomingCall.calledBy.clerkId],
+    });
     setIncomingCall(null);
     setCallEvent({
       type: "cancelled",
@@ -264,6 +258,13 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         conversationId: conversation.id,
         cancelledBy: fromClerkId,
         toClerkIds,
+      });
+      // Also set local cancel event so the same cleanup logic runs for the person who cancels
+      setCallEvent({
+        type: "cancelled",
+        conversationId: conversation.id,
+        byClerkId: fromClerkId,
+        at: Date.now(),
       });
     },
     [socket]
