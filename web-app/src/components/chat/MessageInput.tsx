@@ -223,7 +223,7 @@ export default function MessageInput({
   // Audio recording moved into AudioRecorder component
 
   return (
-    <div className="border-t p-4 shrink-0">
+    <div className="border-t p-4 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       {filePreviews.length > 0 && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-2">
@@ -247,10 +247,10 @@ export default function MessageInput({
                   <img
                     src={item.url}
                     alt={item.file.name}
-                    className="h-16 w-16 rounded object-cover border"
+                    className="h-16 w-16 rounded-lg object-cover border"
                   />
                 ) : (
-                  <div className="h-16 w-40 overflow-hidden rounded border px-2 py-1 flex items-center gap-2 bg-muted/40">
+                  <div className="h-16 w-40 overflow-hidden rounded-lg border px-2 py-1 flex items-center gap-2 bg-muted/40">
                     <FileIcon className="h-4 w-4" />
                     <span className="text-xs truncate" title={item.file.name}>
                       {item.file.name}
@@ -267,7 +267,7 @@ export default function MessageInput({
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="absolute -top-2 -right-2 h-6 w-6"
+                  className="absolute -top-2 -right-2 h-6 w-6 rounded-full shadow-sm"
                   onClick={() => removePreviewAt(idx)}
                   aria-label="Remove file"
                   title="Remove file"
@@ -290,106 +290,113 @@ export default function MessageInput({
           onChange={handleFilesSelected}
         />
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={handlePaperclipClick}
-          aria-label="Upload files"
-          title="Upload files"
-        >
-          <Paperclip className="h-4 w-4" />
-        </Button>
+        <div className="flex-1">
+          <div className="relative flex items-center gap-2 rounded-full border bg-muted/40 px-2 py-1 shadow-sm">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              onClick={handlePaperclipClick}
+              aria-label="Upload files"
+              title="Upload files"
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
 
-        <div className="flex-1 relative">
-          <Input
-            placeholder="Type a message..."
-            className="pr-20"
-            value={messageInput}
-            onChange={onChangeMessage}
-            onKeyPress={onKeyPress}
-          />
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
-              >
-                <Smile className="h-4 w-4" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-80 p-4" align="end">
-              <div className="space-y-2">
-                <h4 className="font-medium text-sm">Emojis</h4>
-                <div className="grid grid-cols-8 gap-1">
-                  {[
-                    "😀",
-                    "😂",
-                    "😍",
-                    "🥰",
-                    "😎",
-                    "🤔",
-                    "😢",
-                    "😡",
-                    "👍",
-                    "👎",
-                    "❤️",
-                    "🔥",
-                    "💯",
-                    "🎉",
-                    "👏",
-                    "🙌",
-                    "😊",
-                    "😘",
-                    "🤗",
-                    "😴",
-                    "🤤",
-                    "😋",
-                    "🥳",
-                    "😇",
-                  ].map((emoji) => (
-                    <Button
-                      key={emoji}
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0 text-lg hover:bg-muted"
-                      onClick={() => onEmojiAppend(emoji)}
-                    >
-                      {emoji}
-                    </Button>
-                  ))}
+            <Input
+              placeholder="Type a message..."
+              className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+              value={messageInput}
+              onChange={onChangeMessage}
+              onKeyPress={onKeyPress}
+            />
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  aria-label="Insert emoji"
+                  title="Insert emoji"
+                >
+                  <Smile className="h-4 w-4" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-4" align="end">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm">Emojis</h4>
+                  <div className="grid grid-cols-8 gap-1">
+                    {[
+                      "😀",
+                      "😂",
+                      "😍",
+                      "🥰",
+                      "😎",
+                      "🤔",
+                      "😢",
+                      "😡",
+                      "👍",
+                      "👎",
+                      "❤️",
+                      "🔥",
+                      "💯",
+                      "🎉",
+                      "👏",
+                      "🙌",
+                      "😊",
+                      "😘",
+                      "🤗",
+                      "😴",
+                      "🤤",
+                      "😋",
+                      "🥳",
+                      "😇",
+                    ].map((emoji) => (
+                      <Button
+                        key={emoji}
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-lg hover:bg-muted"
+                        onClick={() => onEmojiAppend(emoji)}
+                      >
+                        {emoji}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8"
-          onClick={toggleListening}
-          aria-label={
-            isListening ? "Stop speech to text" : "Start speech to text"
-          }
-          title={isListening ? "Stop speech to text" : "Start speech to text"}
-        >
-          {isListening ? (
-            <MicOff className="h-4 w-4" />
-          ) : (
-            <Mic className="h-4 w-4" />
-          )}
-        </Button>
-        <AudioRecorder onRecorded={handleRecordedFile} />
-        <Button
-          size="icon"
-          className="h-8 w-8"
-          onClick={handleSendClick}
-          disabled={!messageInput.trim() && filePreviews.length === 0}
-        >
-          <Send className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={toggleListening}
+            aria-label={
+              isListening ? "Stop speech to text" : "Start speech to text"
+            }
+            title={isListening ? "Stop speech to text" : "Start speech to text"}
+          >
+            {isListening ? (
+              <MicOff className="h-4 w-4" />
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+          </Button>
+          <AudioRecorder onRecorded={handleRecordedFile} />
+          <Button
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleSendClick}
+            disabled={!messageInput.trim() && filePreviews.length === 0}
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

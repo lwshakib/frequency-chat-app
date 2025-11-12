@@ -96,8 +96,8 @@ export default function ConversationList({
           <Button
             key={conversation.id}
             variant="ghost"
-            className={`w-full justify-start h-auto cursor-pointer p-2 ${
-              isSelected ? "bg-muted" : ""
+            className={`w-full justify-start h-auto cursor-pointer p-2 rounded-lg transition-colors ${
+              isSelected ? "bg-muted" : "hover:bg-muted/60"
             }`}
             onClick={() => onClickConversation(conversation)}
           >
@@ -106,17 +106,17 @@ export default function ConversationList({
                 <img
                   src={otherUser.imageUrl}
                   alt={getDisplayName()}
-                  className="w-6 h-6 rounded-full object-cover"
+                  className="w-7 h-7 rounded-full object-cover ring-1 ring-border"
                 />
               ) : conversation.type === "GROUP" && conversation.imageUrl ? (
                 <img
                   src={conversation.imageUrl}
                   alt={getDisplayName()}
-                  className="w-6 h-6 rounded-full object-cover"
+                  className="w-7 h-7 rounded-full object-cover ring-1 ring-border"
                 />
               ) : (
                 <div
-                  className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center`}
+                  className={`w-7 h-7 rounded-full ${avatarColor} flex items-center justify-center ring-1 ring-border`}
                 >
                   <span className="text-xs text-white font-medium">
                     {getInitials(getDisplayName())}
@@ -138,7 +138,7 @@ export default function ConversationList({
               </div>
             </div>
             {unreadCountByConversationId[conversation.id] > 0 && (
-              <div className="ml-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center">
+              <div className="ml-2 min-w-5 h-5 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-medium flex items-center justify-center shadow">
                 {unreadCountByConversationId[conversation.id] > 99
                   ? "99+"
                   : unreadCountByConversationId[conversation.id]}

@@ -3,13 +3,13 @@
 import * as React from "react";
 
 import ConversationList from "@/components/chat/ConversationList";
-import ConversationSkeleton from "@/components/chat/ConversationSkeleton";
 import CreateDialog from "@/components/sidebar/CreateDialog";
 import SidebarHeaderBar from "@/components/sidebar/SidebarHeaderBar";
 import SidebarUserFooter from "@/components/sidebar/SidebarUserFooter";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sidebar, SidebarContent } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
 import { useSocket } from "@/hooks/useSocket";
@@ -251,7 +251,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <ScrollArea className="flex-1 min-h-0 pr-2">
             <div className="space-y-1">
               {isLoadingConversations ? (
-                <ConversationSkeleton />
+                <div className="space-y-1">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center space-x-3 p-2 rounded-md"
+                    >
+                      <Skeleton className="w-6 h-6 rounded-full" />
+                      <div className="flex-1 space-y-1">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : conversations.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground text-sm">
                   No Conversations

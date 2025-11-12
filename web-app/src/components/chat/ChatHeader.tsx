@@ -40,7 +40,7 @@ export default function ChatHeader({
   onVideoCall: () => void;
 }) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="-ml-1" />
         <Separator
@@ -51,7 +51,7 @@ export default function ChatHeader({
         <div className="flex items-center gap-3">
           <div className="relative">
             {isGroup && imageUrl ? (
-              <Avatar className="w-10 h-10">
+              <Avatar className="w-10 h-10 ring-1 ring-border">
                 <AvatarImage src={imageUrl || undefined} alt={title} />
                 <AvatarFallback className={`${avatarColorClass} text-white`}>
                   {initials}
@@ -59,7 +59,7 @@ export default function ChatHeader({
               </Avatar>
             ) : (
               <div
-                className={`w-10 h-10 rounded-full ${avatarColorClass} flex items-center justify-center`}
+                className={`w-10 h-10 rounded-full ${avatarColorClass} flex items-center justify-center ring-1 ring-border`}
               >
                 <span className="text-sm text-white font-medium">
                   {initials}
