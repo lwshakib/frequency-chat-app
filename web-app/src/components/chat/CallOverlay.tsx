@@ -26,6 +26,9 @@ export default function CallOverlay({
   const streamRef = React.useRef<MediaStream | null>(null);
   const remoteVideoRef = React.useRef<HTMLVideoElement | null>(null);
   const [videoError, setVideoError] = React.useState<string | null>(null);
+  const [callDuration, setCallDuration] = React.useState(0);
+  const intervalRef = React.useRef<number | null>(null);
+  const startTimeRef = React.useRef<number | null>(null);
   const { sendStream, remoteStream } = usePeer();
 
   React.useEffect(() => {
@@ -124,20 +127,71 @@ export default function CallOverlay({
     };
   }, [startLocalVideo, sendStream, callType, isActiveCall]);
 
+  // Timer effect - start when call becomes active
+  React.useEffect(() => {
+    if (isActiveCall) {
+      // Start timer
+      startTimeRef.current = Date.now();
+      setCallDuration(0);
+      intervalRef.current = window.setInterval(() => {
+        if (startTimeRef.current) {
+          setCallDuration(Date.now() - startTimeRef.current);
+        }
+      }, 1000); // Update every second
+    } else {
+      // Stop timer
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      startTimeRef.current = null;
+      setCallDuration(0);
+    }
+
+    return () => {
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [isActiveCall]);
+
+  // Format time as MM:SS or HH:MM:SS
+  const formatCallTime = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+      .toString()
+      .padStart(2, "0");
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+    
+    if (hours > 0) {
+      return `${hours}:${minutes}:${seconds}`;
+    }
+    return `${minutes}:${seconds}`;
+  };
+
   return (
     <div className="absolute top-0 left-0 w-screen h-screen z-50 bg-background/90 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
         {callType === "video-call" && remoteStream ? (
-          <div
-            className="rounded-md overflow-hidden bg-black"
-            style={{ width: 640, height: 360 }}
-          >
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
+          <div className="relative">
+            <div
+              className="rounded-md overflow-hidden bg-black"
+              style={{ width: 640, height: 360 }}
+            >
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            </div>
+            {isActiveCall && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-md font-mono font-semibold text-lg z-10">
+                {formatCallTime(callDuration)}
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -156,6 +210,11 @@ export default function CallOverlay({
             {status ? (
               <div className="text-muted-foreground text-sm">{status}</div>
             ) : null}
+            {isActiveCall && (
+              <div className="text-foreground text-lg font-mono font-semibold">
+                {formatCallTime(callDuration)}
+              </div>
+            )}
           </>
         )}
         {videoError ? (
