@@ -95,6 +95,7 @@ export default function ChatPage() {
     null
   );
   const [inCall, setInCall] = React.useState<boolean>(false);
+  const [callType, setCallType] = React.useState<"audio-call" | "video-call" | null>(null);
 
   // Close/Update outgoing overlay when remote events arrive
   React.useEffect(() => {
@@ -110,6 +111,7 @@ export default function ChatPage() {
       ) {
         setInCall(false);
         setCallOverlayText(null);
+        setCallType(null);
       }
       clearCallEvent();
       return;
@@ -532,6 +534,7 @@ export default function ChatPage() {
             }}
             onAudioCall={() => {
               if (!selectedConversation || !user) return;
+              setCallType("audio-call");
               callToUserBySocket({
                 event: "audio-call",
                 calledBy: {
@@ -556,6 +559,7 @@ export default function ChatPage() {
             }}
             onVideoCall={() => {
               if (!selectedConversation || !user) return;
+              setCallType("video-call");
               callToUserBySocket({
                 event: "video-call",
                 calledBy: {
@@ -676,12 +680,15 @@ export default function ChatPage() {
           onAccept={
             incomingCall
               ? () => {
+                  setCallType(incomingCall.event as "audio-call" | "video-call");
                   acceptIncomingCall();
                   setInCall(true);
                 }
               : undefined
           }
-          startLocalVideo={inCall}
+          callType={callType || (incomingCall?.event as "audio-call" | "video-call" | undefined)}
+          startLocalVideo={inCall && (callType === "video-call" || incomingCall?.event === "video-call")}
+          isActiveCall={inCall}
         />
       )}
 

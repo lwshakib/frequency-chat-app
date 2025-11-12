@@ -10,6 +10,8 @@ export default function CallOverlay({
   onCancel,
   onAccept,
   startLocalVideo,
+  callType,
+  isActiveCall,
 }: {
   title: string;
   status?: string;
@@ -17,6 +19,8 @@ export default function CallOverlay({
   onCancel: () => void;
   onAccept?: () => void;
   startLocalVideo?: boolean;
+  callType?: "audio-call" | "video-call";
+  isActiveCall?: boolean;
 }) {
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
   const streamRef = React.useRef<MediaStream | null>(null);
@@ -36,17 +40,26 @@ export default function CallOverlay({
   React.useEffect(() => {
     let cancelled = false;
     const start = async () => {
-      if (!startLocalVideo) return;
+      // Only start media if we're in an active call
+      // For video calls: startLocalVideo will be true when accepted
+      // For audio calls: isActiveCall will be true when accepted
+      if (!isActiveCall && !startLocalVideo) return;
+      
+      const isVideoCall = callType === "video-call";
       setVideoError(null);
+      
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
+        // Request media based on call type
+        const constraints: MediaStreamConstraints = {
+          audio: true,
+          video: isVideoCall ? {
             width: { ideal: 1280 },
             height: { ideal: 720 },
             facingMode: "user",
-          },
-          audio: true,
-        });
+          } : false,
+        };
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         if (cancelled) {
           stream.getTracks().forEach((t) => t.stop());
           return;
@@ -57,7 +70,8 @@ export default function CallOverlay({
         } catch (err) {
           console.debug("sendStream failed", err);
         }
-        if (videoRef.current) {
+        // Only show video element for video calls
+        if (isVideoCall && videoRef.current) {
           videoRef.current.srcObject = stream;
           try {
             await videoRef.current.play();
@@ -66,11 +80,13 @@ export default function CallOverlay({
           }
         }
       } catch {
+        // Fallback: try with simpler constraints
         try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
+          const constraints: MediaStreamConstraints = {
             audio: true,
-          });
+            video: isVideoCall ? true : false,
+          };
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
           if (cancelled) {
             stream.getTracks().forEach((t) => t.stop());
             return;
@@ -81,7 +97,7 @@ export default function CallOverlay({
           } catch (err) {
             console.debug("sendStream failed (fallback)", err);
           }
-          if (videoRef.current) {
+          if (isVideoCall && videoRef.current) {
             videoRef.current.srcObject = stream;
             try {
               await videoRef.current.play();
@@ -90,10 +106,11 @@ export default function CallOverlay({
             }
           }
         } catch (e2) {
-          console.error("Failed to start local video", e2);
-          setVideoError(
-            "Camera/mic unavailable. Check permissions or if device is in use."
-          );
+          console.error("Failed to start media", e2);
+          const errorMessage = isVideoCall
+            ? "Camera/mic unavailable. Check permissions or if device is in use."
+            : "Microphone unavailable. Check permissions or if device is in use.";
+          setVideoError(errorMessage);
         }
       }
     };
@@ -105,12 +122,12 @@ export default function CallOverlay({
         streamRef.current = null;
       }
     };
-  }, [startLocalVideo, sendStream]);
+  }, [startLocalVideo, sendStream, callType, isActiveCall]);
 
   return (
     <div className="absolute top-0 left-0 w-screen h-screen z-50 bg-background/90 flex items-center justify-center">
       <div className="flex flex-col items-center gap-4">
-        {remoteStream ? (
+        {callType === "video-call" && remoteStream ? (
           <div
             className="rounded-md overflow-hidden bg-black"
             style={{ width: 640, height: 360 }}
@@ -146,7 +163,7 @@ export default function CallOverlay({
         ) : null}
       </div>
 
-      {startLocalVideo && !videoError && (
+      {callType === "video-call" && startLocalVideo && !videoError && (
         <div
           className="absolute top-4 right-4 rounded-md overflow-hidden shadow-lg bg-black"
           style={{ width: 320, height: 180 }}
