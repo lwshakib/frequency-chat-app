@@ -1,10 +1,13 @@
 import { usePeer } from "@/hooks/usePeer";
 import { useUser } from "@clerk/clerk-react";
+import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import type { Conversation, Message } from "../types";
 import { useChatStore } from "./chat-context";
 import { SocketContext, type SocketContextType } from "./socket-context";
+import { getApiUrl } from "@/lib/env";
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   const [socket, setSocket] = useState<SocketContextType["socket"]>();
@@ -60,7 +63,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   const onMessageRec = useCallback(
     (msg: Message) => {
-      console.log(msg);
+      logger.debug("Message received:", msg);
       try {
         const state = useChatStore.getState() as unknown as {
           conversations: Conversation[];
@@ -85,7 +88,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           state.setConversations(newList);
         }
       } catch (e) {
-        console.error("Failed to update conversation list on message", e);
+        logger.error("Failed to update conversation list on message", e);
       }
       if (
         selectedConversation &&
@@ -158,7 +161,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           offer,
         });
       } catch (e) {
-        console.error("Failed to send renegotiation offer", e);
+        logger.error("Failed to send renegotiation offer", e);
       }
     },
     [socket, user?.id, createOffer]
@@ -198,7 +201,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           });
           const offer = await createOffer();
           if (offer) {
-            console.log("Sending offer:", offer);
+            logger.debug("Sending offer:", offer);
             socket?.emit("webrtc:offer", {
               roomId,
               conversationId: data.conversation.id,
@@ -209,7 +212,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           }
         }
       } catch (e) {
-        console.error("Failed to create room/send offer", e);
+        logger.error("Failed to create room/send offer", e);
+        toast.error("Failed to initiate call. Please try again.");
       }
     },
     [socket, createOffer]
@@ -272,14 +276,65 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     if (!user?.id) return;
-    const _socket = io(import.meta.env.VITE_API_URL, {
+    
+    const _socket = io(getApiUrl(), {
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
     });
+
+    // Connection event handlers
+    _socket.on("connect", () => {
+      logger.info("Socket connected:", _socket.id);
+      setSelfOnline(true);
+    });
+
+    _socket.on("disconnect", (reason) => {
+      logger.warn("Socket disconnected:", reason);
+      setSelfOnline(false);
+      if (reason === "io server disconnect") {
+        // Server disconnected, need to manually reconnect
+        _socket.connect();
+      }
+    });
+
+    _socket.on("connect_error", (error) => {
+      logger.error("Socket connection error:", error);
+      toast.error("Connection failed. Attempting to reconnect...");
+    });
+
+    _socket.on("reconnect", (attemptNumber) => {
+      logger.info("Socket reconnected after", attemptNumber, "attempts");
+      toast.success("Reconnected successfully");
+    });
+
+    _socket.on("reconnect_attempt", (attemptNumber) => {
+      logger.debug("Reconnection attempt:", attemptNumber);
+    });
+
+    _socket.on("reconnect_error", (error) => {
+      logger.error("Reconnection error:", error);
+    });
+
+    _socket.on("reconnect_failed", () => {
+      logger.error("Failed to reconnect after all attempts");
+      toast.error("Connection lost. Please refresh the page.");
+    });
+
     setSocket(_socket);
     _socket.emit("join:server", user.id);
+
     return () => {
+      _socket.off("connect");
+      _socket.off("disconnect");
+      _socket.off("connect_error");
+      _socket.off("reconnect");
+      _socket.off("reconnect_attempt");
+      _socket.off("reconnect_error");
+      _socket.off("reconnect_failed");
       _socket.disconnect();
       setSocket(undefined);
     };
@@ -297,7 +352,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           await sendRenegotiationOffer(selectedConversation);
         }
       } catch (e) {
-        console.error("negotiationneeded handler failed", e);
+        logger.error("negotiationneeded handler failed", e);
       } finally {
         isMakingOfferRef.current = false;
       }
@@ -341,7 +396,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       try {
         await peer.addIceCandidate(payload.candidate);
       } catch (e) {
-        console.error("Failed to add remote ICE candidate", e);
+        logger.error("Failed to add remote ICE candidate", e);
       }
     };
     socket.on("webrtc:ice-candidate", handleIceCandidate);
@@ -452,7 +507,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
       } catch (e) {
-        console.error("Failed to apply presence update to store", e);
+        logger.error("Failed to apply presence update to store", e);
       }
     };
     const handleCallUser = (payload: {
@@ -542,7 +597,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
           });
         }
       } catch (e) {
-        console.error("Failed to create/send answer", e);
+        logger.error("Failed to create/send answer", e);
       }
     };
     const handleWebrtcAnswer = async (payload: {
@@ -558,7 +613,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         }
         await setRemoteDescriptionAnswer(payload.answer);
       } catch (e) {
-        console.error("Failed to apply remote answer", e);
+        logger.error("Failed to apply remote answer", e);
       }
     };
     socket.on("message", handleMessage);

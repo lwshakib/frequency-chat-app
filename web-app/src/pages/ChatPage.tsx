@@ -15,6 +15,7 @@ import {
 import { useChatStore } from "@/contexts/chat-context";
 import { useTheme } from "@/hooks/use-theme";
 import { useSocket } from "@/hooks/useSocket";
+import { logger } from "@/lib/logger";
 import {
   createOneToOne,
   deleteConversation,
@@ -161,7 +162,7 @@ export default function ChatPage() {
         const data = await getMessages(selectedConversation.id);
         setMessages(data.messages);
       } catch (error) {
-        console.error("Error fetching messages:", error);
+        logger.error("Error fetching messages:", error);
         setMessages([]);
       } finally {
         setIsLoadingMessages(false);
@@ -334,7 +335,7 @@ export default function ChatPage() {
         const data = await res.json();
         if (data?.secure_url) finalImageUrl = data.secure_url as string;
       } catch (e) {
-        console.error("Failed to upload new group image", e);
+        logger.error("Failed to upload new group image", e);
       }
     }
 
@@ -369,7 +370,7 @@ export default function ChatPage() {
         removeAdminIds,
       });
     } catch (err) {
-      console.error("Failed to update group", err);
+      logger.error("Failed to update group", err);
       // Revert UI to previous state on failure
       (
         useChatStore.getState() as unknown as {
@@ -443,7 +444,7 @@ export default function ChatPage() {
       sendMessageSocket(optimisticMessage);
       setMessageInput("");
     } catch (err) {
-      console.error("Failed to send first message:", err);
+      logger.error("Failed to send first message:", err);
     }
   };
 
@@ -529,7 +530,7 @@ export default function ChatPage() {
                 state.setSelectedConversation(null);
                 emitDeleteConversation(selectedConversation);
               } catch (e) {
-                console.error("Failed to delete conversation", e);
+                logger.error("Failed to delete conversation", e);
               }
             }}
             onAudioCall={() => {

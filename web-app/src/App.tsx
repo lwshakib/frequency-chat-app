@@ -1,6 +1,5 @@
 import { SignedIn, SignedOut, SignIn } from "@clerk/clerk-react";
 import { Route, Routes } from "react-router";
-import { Toaster } from "sonner";
 import ChatPage from "./pages/ChatPage";
 
 function App() {
@@ -20,7 +19,6 @@ function App() {
           />
         </div>
       </SignedOut>
-      <Toaster />
     </>
   );
 }

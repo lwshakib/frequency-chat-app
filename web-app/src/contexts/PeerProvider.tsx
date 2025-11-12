@@ -1,3 +1,4 @@
+import { logger } from "@/lib/logger";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PeerContext } from "./peer-context";
 
@@ -9,11 +10,11 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const createOffer = useCallback(async () => {
     if (peer) {
-      console.log("Creating offer");
+      logger.debug("Creating offer");
 
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
-      console.log("Offer created:", offer);
+      logger.debug("Offer created:", offer);
 
       return offer;
     }
@@ -23,11 +24,11 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
   const createAnswer = useCallback(
     async (offer: RTCSessionDescriptionInit) => {
       if (peer) {
-        console.log("Creating answer for offer:", offer);
+        logger.debug("Creating answer for offer:", offer);
         await peer.setRemoteDescription(offer);
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
-        console.log("Answer created:", answer);
+        logger.debug("Answer created:", answer);
         return answer;
       }
       return null;
@@ -38,11 +39,11 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
   const sendStream = useCallback(
     async (stream: MediaStream) => {
       if (!peer) {
-        console.error("Peer connection not established");
+        logger.error("Peer connection not established");
         return;
       }
 
-      console.log("Sending stream:", stream);
+      logger.debug("Sending stream:", stream);
 
       try {
         const audioTrack = stream.getAudioTracks()[0] || null;
@@ -52,7 +53,7 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
         if (tracksAdded) {
           const currentId = localStreamRef.current?.id;
           if (currentId === stream.id) {
-            console.log("Same stream already in use; ignoring re-send.");
+            logger.debug("Same stream already in use; ignoring re-send.");
             return;
           }
           const senders = peer.getSenders();
@@ -65,7 +66,7 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
             }
           }
           localStreamRef.current = stream;
-          console.log("Replaced sender tracks with new stream tracks");
+          logger.debug("Replaced sender tracks with new stream tracks");
           return;
         }
 
@@ -76,9 +77,9 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
         }
         localStreamRef.current = stream;
         setTracksAdded(true);
-        console.log("Stream tracks added successfully");
+        logger.debug("Stream tracks added successfully");
       } catch (error) {
-        console.error("Error adding/replacing stream tracks:", error);
+        logger.error("Error adding/replacing stream tracks:", error);
       }
     },
     [peer, tracksAdded]
@@ -93,17 +94,17 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
             state === "have-local-offer" ||
             (state === "stable" && !peer.currentRemoteDescription);
           if (!canApply) {
-            console.warn(
+            logger.warn(
               "Skip setRemoteDescription(answer) due to state:",
               state
             );
             return;
           }
-          console.log("Setting remote description with answer:", answer);
+          logger.debug("Setting remote description with answer:", answer);
           await peer.setRemoteDescription(answer);
-          console.log("Remote description set successfully");
+          logger.debug("Remote description set successfully");
         } catch (error) {
-          console.error("Error setting remote description:", error);
+          logger.error("Error setting remote description:", error);
         }
       }
     },
@@ -127,13 +128,13 @@ export const PeerProvider = ({ children }: { children: React.ReactNode }) => {
       _peer.addTransceiver("audio", { direction: "recvonly" });
       _peer.addTransceiver("video", { direction: "recvonly" });
     } catch (e) {
-      console.warn("Failed to add default transceivers", e);
+      logger.warn("Failed to add default transceivers", e);
     }
 
     _peer.ontrack = (event) => {
       const stream = event.streams[0];
       if (stream) {
-        console.log("PeerProvider ontrack: remote stream received", stream);
+        logger.debug("PeerProvider ontrack: remote stream received", stream);
         setRemoteStream(stream);
       }
     };
