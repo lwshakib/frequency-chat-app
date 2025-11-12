@@ -114,7 +114,62 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Prevent zoom on input focus on iOS */
+    -webkit-text-size-adjust: 100%;
+    /* Use dynamic viewport height for mobile keyboard support */
+    height: 100%;
+    height: -webkit-fill-available;
+  }
   body {
     @apply bg-background text-foreground;
+    /* Use dynamic viewport height */
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    /* Prevent body scroll on mobile when keyboard is open */
+    overscroll-behavior: none;
+    /* Safe area insets for notched devices */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  #root {
+    /* Use dynamic viewport height */
+    min-height: 100vh;
+    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+  }
+  
+  /* Mobile keyboard handling utilities */
+  .safe-area-inset-bottom {
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  
+  /* Prevent iOS zoom on input focus */
+  @supports (-webkit-touch-callout: none) {
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="url"],
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
+  }
+  
+  /* Improve touch targets on mobile */
+  @media (max-width: 768px) {
+    button,
+    a,
+    input,
+    textarea,
+    select {
+      -webkit-tap-highlight-color: transparent;
+    }
   }
 }

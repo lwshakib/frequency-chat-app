@@ -7,6 +7,8 @@ import {
 } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { getCloudinaryAuth } from "@/lib/api";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { logger } from "@/lib/logger";
 import axios from "axios";
 import {
   File as FileIcon,
@@ -67,6 +69,51 @@ export default function MessageInput({
 }) {
   // Emoji append is delegated to parent via onEmojiAppend
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const isMobile = useIsMobile();
+
+  // Scroll input into view when focused on mobile
+  const handleInputFocus = React.useCallback(() => {
+    if (isMobile && inputRef.current) {
+      // Small delay to ensure keyboard is opening
+      setTimeout(() => {
+        inputRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 300);
+    }
+  }, [isMobile]);
+
+  // Handle viewport resize on mobile (keyboard open/close)
+  React.useEffect(() => {
+    if (!isMobile) return;
+
+    const handleResize = () => {
+      // Ensure input stays visible when keyboard appears
+      if (inputRef.current && document.activeElement === inputRef.current) {
+        setTimeout(() => {
+          inputRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        }, 100);
+      }
+    };
+
+    // Use visualViewport API if available (better for mobile keyboards)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleResize);
+      return () => {
+        window.visualViewport?.removeEventListener("resize", handleResize);
+      };
+    } else {
+      window.addEventListener("resize", handleResize);
+      return () => {
+        window.removeEventListener("resize", handleResize);
+      };
+    }
+  }, [isMobile]);
   const [filePreviews, setFilePreviews] = React.useState<
     { file: File; url?: string }[]
   >([]);
@@ -85,7 +132,7 @@ export default function MessageInput({
   const handleFilesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files ? Array.from(e.target.files) : [];
     if (files.length > 0) {
-      console.log("Selected files:", files);
+      logger.debug("Selected files:", files);
       const newPreviews = files.map((f) => ({
         file: f,
         url: f.type.startsWith("image/") ? URL.createObjectURL(f) : undefined,
@@ -161,7 +208,7 @@ export default function MessageInput({
         files: fileObjs,
       });
     } catch (e) {
-      console.error("Failed to upload files", e);
+      logger.error("Failed to upload files", e);
     } finally {
       clearAllPreviews();
     }
@@ -175,7 +222,7 @@ export default function MessageInput({
         speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
 
       if (!SpeechRecognitionCtor) {
-        console.warn("Speech recognition not supported in this browser.");
+        logger.warn("Speech recognition not supported in this browser.");
         return;
       }
 
@@ -215,7 +262,7 @@ export default function MessageInput({
         setIsListening(false);
       }
     } catch (err) {
-      console.error("Speech recognition error", err);
+      logger.error("Speech recognition error", err);
       setIsListening(false);
     }
   };
@@ -223,7 +270,7 @@ export default function MessageInput({
   // Audio recording moved into AudioRecorder component
 
   return (
-    <div className="border-t p-4 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+    <div className="border-t p-4 shrink-0 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-area-inset-bottom">
       {filePreviews.length > 0 && (
         <div className="mb-3">
           <div className="flex items-center justify-between mb-2">
@@ -304,11 +351,13 @@ export default function MessageInput({
             </Button>
 
             <Input
+              ref={inputRef}
               placeholder="Type a message..."
               className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
               value={messageInput}
               onChange={onChangeMessage}
               onKeyPress={onKeyPress}
+              onFocus={handleInputFocus}
             />
 
             <Popover>

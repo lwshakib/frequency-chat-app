@@ -49,7 +49,7 @@ export default function MessagesArea({
   const showTypingBubble = conversation && visibleTypingIds.length > 0;
 
   return (
-    <div className="flex-1 min-h-0 bg-gradient-to-b from-background to-background">
+    <div className="flex-1 min-h-0 bg-gradient-to-b from-background to-background overflow-hidden">
       <ScrollArea ref={scrollAreaRef} className="h-full">
         <div className="p-4 md:p-6">
           {conversation ? (

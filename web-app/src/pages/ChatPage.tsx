@@ -495,10 +495,10 @@ export default function ChatPage() {
           "--header-height": "calc(var(--spacing) * 16)",
         } as React.CSSProperties
       }
-      className="h-screen"
+      className="h-screen h-dvh"
     >
       <AppSidebar variant="inset" />
-      <SidebarInset className="flex flex-col">
+      <SidebarInset className="flex flex-col overflow-hidden">
         {selectedConversation && (
           <ChatHeader
             title={getDisplayName(selectedConversation, user?.id)}
