@@ -1,6 +1,8 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Message } from "@/types";
 import {
+  Copy as CopyIcon,
+  CornerUpLeft,
   Download,
   ExternalLink,
   File as FileIcon,
@@ -8,8 +10,6 @@ import {
   FileText,
   Pause,
   Play,
-  Copy as CopyIcon,
-  CornerUpLeft,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -301,10 +301,8 @@ export default function MessagesList({
     own: boolean;
     rounded: string;
   }> = ({ children, own, rounded }) => {
-    const base =
-      "px-3 py-2 text-sm shadow-sm border transition-colors";
-    const ownClasses =
-      "bg-primary text-primary-foreground border-primary/60";
+    const base = "px-3 py-2 text-sm shadow-sm border transition-colors";
+    const ownClasses = "bg-primary text-primary-foreground border-primary/60";
     const otherClasses = "bg-muted text-foreground border-muted-foreground/10";
     return (
       <div className={`${base} ${own ? ownClasses : otherClasses} ${rounded}`}>
@@ -342,14 +340,13 @@ export default function MessagesList({
           : "flex-row space-x-2";
 
         // bubble corner rounding depending on grouping
-        const rounded =
-          own
-            ? `${isFirstInGroup ? "rounded-t-2xl" : "rounded-t-md"} ${
-                isLastInGroup ? "rounded-b-2xl" : "rounded-b-md"
-              } rounded-l-2xl`
-            : `${isFirstInGroup ? "rounded-t-2xl" : "rounded-t-md"} ${
-                isLastInGroup ? "rounded-b-2xl" : "rounded-b-md"
-              } rounded-r-2xl`;
+        const rounded = own
+          ? `${isFirstInGroup ? "rounded-t-2xl" : "rounded-t-md"} ${
+              isLastInGroup ? "rounded-b-2xl" : "rounded-b-md"
+            } rounded-l-2xl`
+          : `${isFirstInGroup ? "rounded-t-2xl" : "rounded-t-md"} ${
+              isLastInGroup ? "rounded-b-2xl" : "rounded-b-md"
+            } rounded-r-2xl`;
 
         const iconColor = "text-black dark:text-white";
 
@@ -361,7 +358,9 @@ export default function MessagesList({
                   <Avatar className="h-7 w-7 flex-shrink-0">
                     <AvatarImage
                       src={message.sender?.imageUrl || undefined}
-                      alt={message.sender?.name || message.sender?.email || "User"}
+                      alt={
+                        message.sender?.name || message.sender?.email || "User"
+                      }
                     />
                     <AvatarFallback className="text-[10px] font-medium">
                       {getInitials(message.sender.name || message.sender.email)}
@@ -374,7 +373,11 @@ export default function MessagesList({
                 <div className="h-7 w-7" />
               )}
 
-              <div className={`flex flex-col gap-1 ${own ? "items-end text-right" : ""}`}>
+              <div
+                className={`flex flex-col gap-1 ${
+                  own ? "items-end text-right" : ""
+                }`}
+              >
                 {!own && isFirstInGroup && (
                   <span className="text-[11px] text-muted-foreground">
                     {message.sender?.name || message.sender?.email || "User"}
@@ -384,15 +387,21 @@ export default function MessagesList({
                 {message.files && message.files.length > 0 && (
                   <div className="space-y-2">
                     {message.files.map((fileRef, fidx) => {
-                      const url = typeof fileRef === "string" ? fileRef : fileRef.url;
+                      const url =
+                        typeof fileRef === "string" ? fileRef : fileRef.url;
                       const displayName =
                         typeof fileRef === "string"
                           ? getFileName(url)
                           : fileRef.name || getFileName(url);
                       const baseUrl = url.split("?")[0];
-                      const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(baseUrl);
-                      const isVideo = /\.(mp4|webm|ogv|mov|mkv)$/i.test(baseUrl);
-                      const isAudio = !isVideo && /\.(mp3|wav|m4a|oga|ogg)$/i.test(baseUrl);
+                      const isImage = /\.(jpe?g|png|gif|webp|svg)$/i.test(
+                        baseUrl
+                      );
+                      const isVideo = /\.(mp4|webm|ogv|mov|mkv)$/i.test(
+                        baseUrl
+                      );
+                      const isAudio =
+                        !isVideo && /\.(mp3|wav|m4a|oga|ogg)$/i.test(baseUrl);
 
                       return (
                         <div key={fidx}>
@@ -412,7 +421,9 @@ export default function MessagesList({
                                   aria-label="Open image in new tab"
                                   title="Open"
                                 >
-                                  <ExternalLink className={`h-4 w-4 ${iconColor}`} />
+                                  <ExternalLink
+                                    className={`h-4 w-4 ${iconColor}`}
+                                  />
                                 </a>
                                 <a
                                   href={url}
@@ -421,7 +432,9 @@ export default function MessagesList({
                                   aria-label="Download image"
                                   title="Download"
                                 >
-                                  <Download className={`h-4 w-4 ${iconColor}`} />
+                                  <Download
+                                    className={`h-4 w-4 ${iconColor}`}
+                                  />
                                 </a>
                               </div>
                             </div>
@@ -437,7 +450,9 @@ export default function MessagesList({
                                   aria-label="Open video in new tab"
                                   title="Open"
                                 >
-                                  <ExternalLink className={`h-4 w-4 ${iconColor}`} />
+                                  <ExternalLink
+                                    className={`h-4 w-4 ${iconColor}`}
+                                  />
                                 </a>
                                 <a
                                   href={url}
@@ -446,7 +461,9 @@ export default function MessagesList({
                                   aria-label="Download video"
                                   title="Download"
                                 >
-                                  <Download className={`h-4 w-4 ${iconColor}`} />
+                                  <Download
+                                    className={`h-4 w-4 ${iconColor}`}
+                                  />
                                 </a>
                               </div>
                             </div>
@@ -462,7 +479,9 @@ export default function MessagesList({
                                   aria-label="Open audio in new tab"
                                   title="Open"
                                 >
-                                  <ExternalLink className={`h-4 w-4 ${iconColor}`} />
+                                  <ExternalLink
+                                    className={`h-4 w-4 ${iconColor}`}
+                                  />
                                 </a>
                                 <a
                                   href={url}
@@ -471,7 +490,9 @@ export default function MessagesList({
                                   aria-label="Download audio"
                                   title="Download"
                                 >
-                                  <Download className={`h-4 w-4 ${iconColor}`} />
+                                  <Download
+                                    className={`h-4 w-4 ${iconColor}`}
+                                  />
                                 </a>
                               </div>
                             </div>
@@ -495,7 +516,9 @@ export default function MessagesList({
                                 aria-label="Open file in new tab"
                                 title="Open"
                               >
-                                <ExternalLink className={`h-4 w-4 ${iconColor}`} />
+                                <ExternalLink
+                                  className={`h-4 w-4 ${iconColor}`}
+                                />
                               </a>
                               <a
                                 href={url}
@@ -518,9 +541,15 @@ export default function MessagesList({
                 {message.content && (
                   <div className="relative group">
                     <Bubble own={own} rounded={rounded}>
-                      <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                      <div className="whitespace-pre-wrap break-words">
+                        {message.content}
+                      </div>
                     </Bubble>
-                    <div className={`absolute -top-3 ${own ? "right-2" : "left-2"} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                    <div
+                      className={`absolute -top-3 ${
+                        own ? "right-2" : "left-2"
+                      } opacity-0 group-hover:opacity-100 transition-opacity`}
+                    >
                       <div className="flex items-center gap-1 rounded-full bg-background/90 border px-1 py-0.5 shadow-sm">
                         <button
                           type="button"
