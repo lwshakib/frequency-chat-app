@@ -1,19 +1,14 @@
 import Redis from "ioredis";
 import { Server } from "socket.io";
+import envs from "../config/envs.js";
 import { produceMessage, produceUserPresence } from "./kafka.js";
 
 const pub = new Redis({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT || "0"),
-  username: process.env.REDIS_USERNAME,
-  password: process.env.REDIS_PASSWORD,
+  url: envs.REDIS_URL,
 });
 
 const sub = new Redis({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT || "0"),
-  username: process.env.REDIS_USERNAME,
-  password: process.env.REDIS_PASSWORD,
+  url: envs.REDIS_URL,
 });
 
 class SocketService {

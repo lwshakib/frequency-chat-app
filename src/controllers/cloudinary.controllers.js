@@ -1,9 +1,10 @@
 import { v2 as cloudinary } from "cloudinary";
+import envs from "../config/envs.js";
 
 cloudinary.config({
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: envs.CLOUDINARY_API_KEY,
+  api_secret: envs.CLOUDINARY_API_SECRET,
+  cloud_name: envs.CLOUDINARY_CLOUD_NAME,
 });
 
 export const getCloudinaryAuth = async (req, res) => {
@@ -12,25 +13,25 @@ export const getCloudinaryAuth = async (req, res) => {
     const folder = "frequency-chat-app";
     const signature = cloudinary.utils.api_sign_request(
       { timestamp, folder },
-      process.env.CLOUDINARY_API_SECRET
+      envs.CLOUDINARY_API_SECRET
     );
     return res.json({
       signature,
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      cloudName: envs.CLOUDINARY_CLOUD_NAME,
       timestamp,
       folder,
-      apiKey: process.env.CLOUDINARY_API_KEY,
+      apiKey: envs.CLOUDINARY_API_KEY,
     });
   } catch (error) {
     console.error("Error in cloudinary-signature GET:", error);
     return res.status(500).json({
       error:
-        process.env.NODE_ENV === "development"
+        envs.NODE_ENV === "development"
           ? `Internal Server Error: ${
               error instanceof Error ? error.message : String(error)
             }`
           : "Internal Server Error",
-      ...(process.env.NODE_ENV === "development" &&
+      ...(envs.NODE_ENV === "development" &&
         error instanceof Error && { stack: error.stack }),
     });
   }

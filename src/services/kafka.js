@@ -1,20 +1,18 @@
-import dotenv from "dotenv";
 import { Kafka } from "kafkajs";
+import envs from "../config/envs.js";
 import prisma from "./prisma.js";
 
-dotenv.config();
-
 const kafka = new Kafka({
-  clientId: "my-app",
-  brokers: [`${process.env.KAFKA_HOST}:${process.env.KAFKA_PORT}`],
-  ssl: {
-    ca: process.env.KAFKA_CERTIFICATE,
-  },
-  sasl: {
-    mechanism: "plain", // Or "scram-sha-256"/"scram-sha-512" depending on provider
-    username: process.env.KAFKA_USERNAME,
-    password: process.env.KAFKA_PASSWORD,
-  },
+  clientId: "frequency-chat-app",
+  brokers: [`${envs.KAFKA_BROKER}`],
+  // ssl: {
+  //   ca: process.env.KAFKA_CERTIFICATE,
+  // },
+  // sasl: {
+  //   mechanism: "plain", // Or "scram-sha-256"/"scram-sha-512" depending on provider
+  //   username: process.env.KAFKA_USERNAME,
+  //   password: process.env.KAFKA_PASSWORD,
+  // },
   connectionTimeout: 30000,
   requestTimeout: 60000,
   retry: {

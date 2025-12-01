@@ -1,12 +1,12 @@
 import { requireAuth } from "@clerk/express";
 import cors from "cors";
-import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
 import http from "http";
 import morgan from "morgan";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
+import envs from "./config/envs.js";
 import { authMiddleware } from "./middlewares/auth.middlewares.js";
 import router from "./routes/index.js";
 import {
@@ -16,8 +16,7 @@ import {
 } from "./services/kafka.js";
 import SocketService from "./services/socket.js";
 
-dotenv.config();
-const port = process.env.PORT || 8000;
+const port = envs.PORT;
 
 const app = express();
 
@@ -94,7 +93,7 @@ socketService.initListeners();
 
 app.use("/api", requireAuth({ signInUrl: "/" }), authMiddleware, router);
 
-if (process.env.NODE_ENV === "production") {
+if (envs.NODE_ENV === "production") {
   app.use(express.static(path.join(__dirname, "..", "web-app", "dist")));
 
   app.get("/", (req, res) => {
