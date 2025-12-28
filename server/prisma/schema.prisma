@@ -24,6 +24,12 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+  isOnline  Boolean @default(false)
+  lastOnlineAt DateTime?
+  messages  Message[]
+  conversations Conversation[]
+  adminConversations ConversationAdmin[]
+
   @@unique([email])
   @@map("user")
 }
@@ -74,4 +80,62 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+
+
+
+
+enum CONVERSATION_TYPE {
+  ONE_TO_ONE
+  GROUP
+}
+
+enum MESSAGE_READ_STATUS {
+  UNREAD
+  READ
+  SENT
+}
+
+
+model Message {
+  id        String @id @default(cuid())
+  type      String @default("TEXT")
+  content   String
+  sender    User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  senderId  String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  isRead    MESSAGE_READ_STATUS @default(UNREAD)
+  files     Json?
+  lastMessageConversation Conversation? @relation("LastMessage")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Conversation {
+  id        String @id @default(cuid())
+  name      String?
+  description String?
+  imageUrl  String?
+  type      CONVERSATION_TYPE @default(ONE_TO_ONE)
+  users     User[]
+  messages  Message[]
+  admins    ConversationAdmin[]
+  lastMessageId String? @unique
+  lastMessage Message? @relation("LastMessage", fields: [lastMessageId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ConversationAdmin {
+  id             String @id @default(cuid())
+  userId         String
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, conversationId])
 }

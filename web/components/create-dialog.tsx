@@ -137,7 +137,7 @@ export default function CreateDialog({
               <div className="max-h-60 overflow-y-auto border rounded-md">
                 {availableUsers.map((u) => (
                   <div
-                    key={u.clerkId}
+                    key={u.id}
                     className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
                     onClick={() => onSelectContact(u)}
                   >
@@ -260,12 +260,10 @@ export default function CreateDialog({
               </div>
               <div className="max-h-32 overflow-y-auto border rounded-md">
                 {availableUsers
-                  .filter(
-                    (u) => !selectedUsers.find((su) => su.clerkId === u.clerkId)
-                  )
+                  .filter((u) => !selectedUsers.find((su) => su.id === u.id))
                   .map((user) => (
                     <div
-                      key={user.clerkId}
+                      key={user.id}
                       className="flex items-center justify-between p-2 hover:bg-muted cursor-pointer"
                       onClick={() => addUser(user)}
                     >
@@ -289,7 +287,7 @@ export default function CreateDialog({
                     </div>
                   ))}
                 {availableUsers.filter(
-                  (u) => !selectedUsers.find((su) => su.clerkId === u.clerkId)
+                  (u) => !selectedUsers.find((su) => su.id === u.id)
                 ).length === 0 && (
                   <div className="text-center text-sm text-muted-foreground py-3">
                     No users
@@ -303,7 +301,7 @@ export default function CreateDialog({
                 <div className="space-y-1">
                   {selectedUsers.map((user) => (
                     <div
-                      key={user.clerkId}
+                      key={user.id}
                       className="flex items-center justify-between p-2 bg-muted rounded-md"
                     >
                       <div className="flex items-center space-x-2">
@@ -326,7 +324,7 @@ export default function CreateDialog({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeUser(user.clerkId)}
+                        onClick={() => removeUser(user.id)}
                         className="h-6 w-6 p-0 cursor-pointer"
                       >
                         <X className="h-4 w-4" />

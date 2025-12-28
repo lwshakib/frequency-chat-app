@@ -8,6 +8,8 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./services/auth.services";
 import routes from "./routes";
 import { WEB_URL } from "./env";
+import { errorHandler } from "./middlewares/error.middlewares";
+import morganMiddleware from "./logger/morgan.logger";
 
 const app = express();
 
@@ -20,7 +22,7 @@ app.use(
     credentials: true, // Allow credentials (cookies, authorization headers, etc.)
   })
 );
-app.use(morgan("dev"));
+
 app.use(helmet());
 
 app.all("/api/auth/*splat", toNodeHandler(auth));
@@ -36,5 +38,6 @@ app.get("/health", (req, res) => {
 app.use("/api", routes);
 
 const httpServer = http.createServer(app);
-
+app.use(morganMiddleware);
+app.use(errorHandler);
 export default httpServer;

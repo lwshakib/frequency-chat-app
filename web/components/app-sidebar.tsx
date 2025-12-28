@@ -5,7 +5,6 @@ import * as React from "react";
 import ConversationList from "@/components/conversation-list";
 import CreateDialog from "@/components/create-dialog";
 import { NavUser } from "@/components/nav-user";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -25,6 +24,48 @@ import { Users } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ModeToggle } from "@/components/mode-toggle";
+import {
+  searchUsers,
+  getConversations,
+  createOneToOneConversation,
+  createGroupConversation,
+  uploadToCloudinary,
+  type ApiUser,
+  type ApiConversation,
+} from "@/lib/api";
+
+// Helper to convert API user to frontend User type
+function toUser(apiUser: ApiUser): User {
+  return {
+    id: apiUser.id,
+    clerkId: apiUser.id, // Using id as clerkId for compatibility
+    name: apiUser.name,
+    email: apiUser.email,
+    image: apiUser.image,
+    createdAt: new Date(apiUser.createdAt),
+    updatedAt: new Date(apiUser.updatedAt),
+  };
+}
+
+// Helper to convert API conversation to frontend Conversation type
+function toConversation(apiConv: ApiConversation): Conversation {
+  return {
+    id: apiConv.id,
+    name: apiConv.name,
+    description: apiConv.description,
+    type:
+      apiConv.type === "GROUP"
+        ? CONVERSATION_TYPE.GROUP
+        : CONVERSATION_TYPE.ONE_TO_ONE,
+    users: apiConv.users.map(toUser),
+    admins: apiConv.admins.map((a) => a.id),
+    messages: [],
+    lastMessageId: apiConv.lastMessageId,
+    lastMessage: apiConv.lastMessage,
+    createdAt: new Date(apiConv.updatedAt),
+    updatedAt: new Date(apiConv.updatedAt),
+  };
+}
 
 // --- Header Component ---
 export function SidebarHeaderBar() {
@@ -78,69 +119,116 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const [availableUsers, setAvailableUsers] = React.useState<User[]>([]);
   const [isCreatingGroup, setIsCreatingGroup] = React.useState(false);
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [conversationSearch, setConversationSearch] = React.useState("");
 
-  // Stub API calls
+  // Fetch conversations from API
   const fetchConversations = React.useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
     setIsLoadingConversations(true);
     try {
-      // Stub: fetch logic removed
-      // setConversations([...]);
+      const apiConversations = await getConversations(user.id);
+      setConversations(apiConversations.map(toConversation));
     } catch (error) {
       console.error("Error fetching conversations:", error);
     } finally {
       setIsLoadingConversations(false);
     }
-  }, [user, setIsLoadingConversations, setConversations]);
+  }, [user?.id, setIsLoadingConversations, setConversations]);
 
-  async function fetchUsers(searchTerm?: string) {
-    try {
-      // Stub: fetch users
-      if (searchTerm) {
-        setAvailableUsers([
-          {
-            id: "1",
-            clerkId: "1",
-            name: "Alice",
-            email: "alice@example.com",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-          {
-            id: "2",
-            clerkId: "2",
-            name: "Bob",
-            email: "bob@example.com",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          },
-        ]);
-      } else {
+  // Fetch users from API with debounce
+  const fetchUsersDebounced = React.useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return (searchTerm: string) => {
+      clearTimeout(timeoutId);
+      if (!searchTerm.trim()) {
         setAvailableUsers([]);
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  }
+      timeoutId = setTimeout(async () => {
+        try {
+          const apiUsers = await searchUsers(searchTerm, user?.id);
+          setAvailableUsers(apiUsers.map(toUser));
+        } catch (error) {
+          console.error("Error fetching users:", error);
+          setAvailableUsers([]);
+        }
+      }, 300);
+    };
+  }, [user?.id]);
 
   React.useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
 
   React.useEffect(() => {
-    fetchUsers(userSearch);
-  }, [userSearch]);
+    fetchUsersDebounced(userSearch);
+  }, [userSearch, fetchUsersDebounced]);
 
+  // Handle creating a 1-on-1 conversation (contact)
+  const handleSelectContact = async (selectedUser: User) => {
+    if (!user?.id) return;
+
+    try {
+      const apiConversation = await createOneToOneConversation([
+        user.id,
+        selectedUser.id,
+      ]);
+      const newConversation = toConversation(apiConversation);
+
+      // Add to conversations if not already there
+      const exists = conversations.find((c) => c.id === newConversation.id);
+      if (!exists) {
+        setConversations([newConversation, ...conversations]);
+      }
+
+      setSelectedConversation(newConversation);
+      setIsDialogOpen(false);
+      setUserSearch("");
+    } catch (error) {
+      console.error("Error creating contact conversation:", error);
+    }
+  };
+
+  // Handle creating a group conversation
   const handleCreateGroup = async () => {
-    if (!user || !groupName.trim() || selectedUsers.length === 0) return;
+    if (!user?.id || !groupName.trim() || selectedUsers.length === 0) return;
 
     setIsCreatingGroup(true);
     try {
-      // Stub creation
-      console.log("Create group:", groupName, selectedUsers);
+      // Upload image to Cloudinary if file is provided
+      let imageUrl = groupImageUrl;
+      if (groupImageFile) {
+        try {
+          imageUrl = await uploadToCloudinary(groupImageFile);
+        } catch (uploadError) {
+          console.error("Error uploading image:", uploadError);
+          // Continue without image if upload fails
+        }
+      }
+
+      // Include current user in the group
+      const memberIds = [user.id, ...selectedUsers.map((u) => u.id)];
+
+      const apiConversation = await createGroupConversation({
+        name: groupName.trim(),
+        description: groupDescription.trim() || undefined,
+        imageUrl: imageUrl || undefined,
+        memberIds,
+        adminId: user.id,
+      });
+
+      const newConversation = toConversation(apiConversation);
+      setConversations([newConversation, ...conversations]);
+      setSelectedConversation(newConversation);
+
+      // Reset form
       setIsDialogOpen(false);
       setGroupName("");
+      setGroupDescription("");
+      setGroupImageUrl("");
+      setGroupImageFile(null);
       setSelectedUsers([]);
+      setUserSearch("");
     } catch (error) {
       console.error("Error creating group:", error);
     } finally {
@@ -149,14 +237,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
   const addUser = (userToAdd: User) => {
-    if (!selectedUsers.find((u) => u.clerkId === userToAdd.clerkId)) {
+    if (!selectedUsers.find((u) => u.id === userToAdd.id)) {
       setSelectedUsers([...selectedUsers, userToAdd]);
     }
     setUserSearch("");
   };
 
   const removeUser = (userId: string) => {
-    setSelectedUsers(selectedUsers.filter((u) => u.clerkId !== userId));
+    setSelectedUsers(selectedUsers.filter((u) => u.id !== userId));
   };
 
   const handleConversationClick = async (conversation: Conversation) => {
@@ -164,6 +252,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setSelectedConversation(conversation);
     resetUnread(conversation.id);
   };
+
+  // Filter conversations based on search
+  const filteredConversations = React.useMemo(() => {
+    if (!conversationSearch.trim()) return conversations;
+    const search = conversationSearch.toLowerCase();
+    return conversations.filter((conv) => {
+      // Search by conversation name
+      if (conv.name?.toLowerCase().includes(search)) return true;
+      // Search by user names in the conversation
+      return conv.users.some((u) => u.name?.toLowerCase().includes(search));
+    });
+  }, [conversations, conversationSearch]);
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
@@ -176,28 +276,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             availableUsers={availableUsers}
             userSearch={userSearch}
             setUserSearch={setUserSearch}
-            onSelectContact={(u) => {
-              if (!user) return;
-              const tempId = `temp-${Date.now()}`;
-              const tempConversation = {
-                id: tempId,
-                name: u.name,
-                description: null,
-                type: CONVERSATION_TYPE.ONE_TO_ONE,
-                users: [
-                  // Map user to type compatible stub
-                  { ...u },
-                ],
-                admins: [],
-                messages: [],
-                lastMessageId: null,
-                lastMessage: null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              } as unknown as Conversation;
-              setSelectedConversation(tempConversation);
-              setIsDialogOpen(false);
-            }}
+            onSelectContact={handleSelectContact}
             groupName={groupName}
             setGroupName={setGroupName}
             groupDescription={groupDescription}
@@ -212,7 +291,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             onCreateGroup={handleCreateGroup}
             isCreatingGroup={isCreatingGroup}
           />
-          <Input placeholder="Search contacts..." className="w-full" />
+          <Input
+            placeholder="Search contacts..."
+            className="w-full"
+            value={conversationSearch}
+            onChange={(e) => setConversationSearch(e.target.value)}
+          />
 
           {/* Groups and Contacts */}
           <div className="flex items-center space-x-2 px-2 py-1">
@@ -239,13 +323,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </div>
                   ))}
                 </div>
-              ) : conversations.length === 0 ? (
+              ) : filteredConversations.length === 0 ? (
                 <div className="text-center py-4 text-muted-foreground text-sm">
-                  No Conversations
+                  {conversationSearch
+                    ? "No matching conversations"
+                    : "No Conversations"}
                 </div>
               ) : (
                 <ConversationList
-                  conversations={conversations}
+                  conversations={filteredConversations}
                   currentUserId={user?.id}
                   unreadCountByConversationId={unreadCountByConversationId}
                   typingByConversationId={typingByConversationId}

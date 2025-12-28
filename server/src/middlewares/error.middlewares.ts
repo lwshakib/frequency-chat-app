@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction, ErrorRequestHandler } from "express";
-import logger from "../logger/winston.logger.js";
-import { ApiError } from "../utils/ApiError.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import logger from "../logger/winston.logger";
+import { ApiError } from "../utils/ApiError";
+import { asyncHandler } from "../utils/asyncHandler";
 
 /**
  * This middleware is responsible for catching errors from any request handler

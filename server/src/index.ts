@@ -1,12 +1,12 @@
-import httpServer from './app';
+import httpServer from "./app";
 
-import 'dotenv/config';
+import "dotenv/config";
+import logger from "./logger/winston.logger";
 
-
-async function startServer(){
-    const port = process.env.PORT || 3000;
-    httpServer.listen(port, () => {
-        console.log(`Server is listening on port ${port}`);
-    })
+async function startServer() {
+  const port = process.env.PORT || 4000;
+  httpServer.listen(port, () => {
+    logger.info(`Server is running on http://localhost:${port}`);
+  });
 }
-startServer()
+startServer();
