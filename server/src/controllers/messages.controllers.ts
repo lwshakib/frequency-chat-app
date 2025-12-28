@@ -166,3 +166,32 @@ export const updateMessages = asyncHandler(
       );
   }
 );
+
+export const markAllAsRead = asyncHandler(
+  async (req: Request, res: Response) => {
+    // @ts-ignore
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+
+    if (!conversationId) {
+      throw new ApiError(400, "Conversation ID is required");
+    }
+
+    await prisma.message.updateMany({
+      where: {
+        conversationId,
+        senderId: {
+          not: userId,
+        },
+        isRead: MESSAGE_READ_STATUS.UNREAD,
+      },
+      data: {
+        isRead: MESSAGE_READ_STATUS.READ,
+      },
+    });
+
+    res
+      .status(200)
+      .json(new ApiResponse(200, null, "All messages marked as read"));
+  }
+);

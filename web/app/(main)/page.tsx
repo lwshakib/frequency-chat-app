@@ -1,7 +1,7 @@
 "use client";
 
 import { useChatStore } from "@/context";
-import { CONVERSATION_TYPE } from "@/types";
+import { CONVERSATION_TYPE, User } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Users,
@@ -23,7 +23,34 @@ import {
 import { useState, useEffect, useRef } from "react";
 import MessagesArea from "@/components/chat/MessagesArea";
 import MessageInput from "@/components/chat/MessageInput";
-import { MESSAGE_READ_STATUS, Message } from "@/types";
+import { MESSAGE_READ_STATUS, Message, type Conversation } from "@/types";
+import { useSocket } from "@/context/socket-provider";
+import {
+  getMessages,
+  createOneToOneConversation,
+  markMessagesAsRead,
+  type ApiMessage,
+} from "@/lib/api";
+import { toConversation } from "@/lib/chat-helpers";
+
+function toMessage(apiMsg: ApiMessage): Message {
+  return {
+    id: apiMsg.id,
+    content: apiMsg.content,
+    type: apiMsg.type as any,
+    files: apiMsg.files,
+    conversationId: apiMsg.conversationId,
+    senderId: apiMsg.senderId,
+    isRead: apiMsg.isRead as any,
+    createdAt: new Date(apiMsg.createdAt),
+    updatedAt: new Date(apiMsg.updatedAt),
+    sender: {
+      ...apiMsg.sender,
+      createdAt: new Date(apiMsg.sender.createdAt),
+      updatedAt: new Date(apiMsg.sender.updatedAt),
+    } as User,
+  };
+}
 
 export default function Page() {
   const {
@@ -31,75 +58,161 @@ export default function Page() {
     session,
     messages,
     setMessages,
+    setConversations,
+    setSelectedConversation,
+    resetUnread,
     isLoadingMessages,
     setIsLoadingMessages,
   } = useChatStore();
+  const { sendMessage, emitTypingStart, emitTypingStop } = useSocket();
   const currentUser = session?.user;
   const [messageInput, setMessageInput] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (selectedConversation) {
-      setIsLoadingMessages(true);
-      // Simulate API call and add dummy messages
-      setTimeout(() => {
-        const dummyMessages: Message[] = [
-          {
-            id: "1",
-            content: "Hey there! How's it going?",
-            senderId: "other-user",
-            conversationId: selectedConversation.id,
-            type: "text",
-            isRead: MESSAGE_READ_STATUS.READ,
-            createdAt: new Date(Date.now() - 3600000),
-            updatedAt: new Date(Date.now() - 3600000),
-            sender: (selectedConversation.users.find(
-              (u) => u.id !== currentUser?.id
-            ) || currentUser) as User,
-          },
-          {
-            id: "2",
-            content: "Hi! Just working on the chat app. It's looking good!",
-            senderId: currentUser?.id || "me",
-            conversationId: selectedConversation.id,
-            type: "text",
-            isRead: MESSAGE_READ_STATUS.READ,
-            createdAt: new Date(Date.now() - 1800000),
-            updatedAt: new Date(Date.now() - 1800000),
-            sender: currentUser as User,
-          },
-        ];
-        setMessages(dummyMessages);
-        setIsLoadingMessages(false);
-      }, 500);
-    } else {
-      setMessages([]);
+    if (selectedConversation && !selectedConversation.isVirtual) {
+      markMessagesAsRead(selectedConversation.id).catch(console.error);
+      resetUnread(selectedConversation.id);
     }
-  }, [selectedConversation, currentUser, setMessages, setIsLoadingMessages]);
+  }, [selectedConversation, resetUnread]);
 
-  const handleSendMessage = () => {
-    if (!messageInput.trim() || !currentUser || !selectedConversation) return;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setMessageInput(value);
+
+    if (selectedConversation && currentUser) {
+      // Emit typing:start
+      emitTypingStart(selectedConversation, currentUser.id);
+
+      // Clear existing timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      // Set timeout to emit typing:stop
+      typingTimeoutRef.current = setTimeout(() => {
+        emitTypingStop(selectedConversation, currentUser.id);
+        typingTimeoutRef.current = null;
+      }, 1500);
+    }
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!selectedConversation) {
+      setMessages([]);
+      return;
+    }
+
+    // Skip fetching for virtual conversations (not in DB yet)
+    if (selectedConversation.isVirtual) {
+      setMessages([]);
+      setIsLoadingMessages(false);
+      return;
+    }
+
+    // Clear messages and start loading immediately
+    setMessages([]);
+    setIsLoadingMessages(true);
+
+    const fetchMessages = async () => {
+      try {
+        const apiMessages = await getMessages(selectedConversation.id);
+        if (isMounted) {
+          setMessages(apiMessages.map(toMessage));
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Failed to fetch messages:", error);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingMessages(false);
+        }
+      }
+    };
+
+    fetchMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedConversation?.id, setMessages, setIsLoadingMessages]);
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector(
+        "[data-radix-scroll-area-viewport]"
+      );
+      if (scrollContainer) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollHeight,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [messages, selectedConversation]);
+
+  const handleSendMessage = async (content: string, files?: any[]) => {
+    if (!content.trim() && (!files || files.length === 0)) return;
+    if (!currentUser || !selectedConversation) return;
+
+    let targetConversation = selectedConversation;
+
+    // Persist virtual conversation on first message
+    if (selectedConversation.isVirtual) {
+      const otherUser = selectedConversation.users.find(
+        (u) => u.id !== currentUser.id
+      );
+      if (!otherUser) return;
+
+      try {
+        const apiConversation = await createOneToOneConversation([
+          currentUser.id,
+          otherUser.id,
+        ]);
+        const realConversation = toConversation(apiConversation);
+
+        // Update local state: add to sidebar and select real one
+        setConversations([
+          realConversation,
+          ...useChatStore.getState().conversations,
+        ]);
+        setSelectedConversation(realConversation);
+        targetConversation = realConversation;
+      } catch (error) {
+        console.error("Failed to persist virtual conversation:", error);
+        return;
+      }
+    }
 
     const newMessage: Message = {
       id: Date.now().toString(),
-      content: messageInput,
+      content: content,
+      files: files,
       senderId: currentUser.id,
-      conversationId: selectedConversation.id,
-      type: "text",
+      conversationId: targetConversation.id,
+      type:
+        files && files.length > 0 ? (content ? "text+files" : "files") : "text",
       isRead: MESSAGE_READ_STATUS.UNREAD,
       createdAt: new Date(),
       updatedAt: new Date(),
-      sender: currentUser,
+      sender: currentUser as any as User,
     };
 
-    setMessages([...messages, newMessage]);
+    sendMessage(newMessage, targetConversation);
+    setMessages([...useChatStore.getState().messages, newMessage]);
     setMessageInput("");
-  };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
+    // Stop typing indicator on send
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    if (targetConversation && currentUser) {
+      emitTypingStop(targetConversation, currentUser.id);
     }
   };
 
@@ -164,23 +277,6 @@ export default function Page() {
         </div>
 
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            title="Audio Call"
-          >
-            <Phone className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground"
-            title="Video Call"
-          >
-            <Video className="h-4 w-4" />
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -231,32 +327,9 @@ export default function Page() {
 
       <MessageInput
         messageInput={messageInput}
-        onChangeMessage={(e) => setMessageInput(e.target.value)}
-        onKeyPress={handleKeyPress}
-        onSendMessage={(content, files) => {
-          if (!content.trim() && (!files || files.length === 0)) return;
-
-          const newMessage: Message = {
-            id: Date.now().toString(),
-            content: content,
-            files: files,
-            senderId: currentUser!.id,
-            conversationId: selectedConversation.id,
-            type:
-              files && files.length > 0
-                ? content
-                  ? "text+files"
-                  : "files"
-                : "text",
-            isRead: MESSAGE_READ_STATUS.UNREAD,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            sender: currentUser as User,
-          };
-
-          setMessages([...messages, newMessage]);
-          setMessageInput("");
-        }}
+        onChangeMessage={handleInputChange}
+        onKeyPress={() => {}}
+        onSendMessage={handleSendMessage}
         onEmojiSelect={(emoji) => setMessageInput((prev) => prev + emoji)}
       />
     </div>

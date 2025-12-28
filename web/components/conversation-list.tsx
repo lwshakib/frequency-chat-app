@@ -9,7 +9,6 @@ interface ConversationListProps {
   currentUserId?: string;
   onClickConversation: (c: Conversation) => void;
   selectedConversationId?: string;
-  unreadCountByConversationId?: Record<string, number>;
   typingByConversationId?: Record<string, any>;
 }
 
@@ -18,7 +17,7 @@ export default function ConversationList({
   currentUserId,
   onClickConversation,
   selectedConversationId,
-  unreadCountByConversationId,
+  typingByConversationId,
 }: ConversationListProps) {
   if (!conversations?.length) return null;
   return (
@@ -62,14 +61,32 @@ export default function ConversationList({
                 <span className="font-medium truncate text-sm">
                   {displayName || "Unknown"}
                 </span>
-                {unreadCountByConversationId?.[c.id] ? (
+                {c.unreadCount > 0 ? (
                   <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
-                    {unreadCountByConversationId[c.id]}
+                    {c.unreadCount}
                   </span>
                 ) : null}
               </div>
               <div className="text-xs text-muted-foreground truncate">
-                {c.lastMessage?.content || "No messages"}
+                {typingByConversationId?.[c.id] &&
+                Object.keys(typingByConversationId[c.id]).length > 0 ? (
+                  <span className="text-primary font-medium animate-pulse">
+                    {(() => {
+                      const typingUserIds = Object.keys(
+                        typingByConversationId[c.id]
+                      );
+                      if (typingUserIds.length === 1) {
+                        const userObj = c.users.find(
+                          (u) => u.id === typingUserIds[0]
+                        );
+                        return `${userObj?.name || "Someone"} is typing...`;
+                      }
+                      return "Several people are typing...";
+                    })()}
+                  </span>
+                ) : (
+                  c.lastMessage?.content || "No messages"
+                )}
               </div>
             </div>
           </button>

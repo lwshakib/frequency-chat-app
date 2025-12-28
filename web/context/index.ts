@@ -13,11 +13,14 @@ interface ChatStore {
   setSelectedConversation: (conversation: Conversation | null) => void;
   isLoadingConversations: boolean;
   setIsLoadingConversations: (loading: boolean) => void;
-  unreadCountByConversationId: Record<string, number>;
-  setUnreadCountByConversationId: (counts: Record<string, number>) => void;
+  incrementUnread: (conversationId: string) => void;
   resetUnread: (conversationId: string) => void;
-  typingByConversationId: Record<string, any>;
-  setTypingByConversationId: (typing: Record<string, any>) => void;
+  typingByConversationId: Record<string, Record<string, boolean>>;
+  addTyping: (conversationId: string, userId: string) => void;
+  removeTyping: (conversationId: string, userId: string) => void;
+  setTypingByConversationId: (
+    typing: Record<string, Record<string, boolean>>
+  ) => void;
   messages: any[];
   setMessages: (messages: any[]) => void;
   isLoadingMessages: boolean;
@@ -35,16 +38,41 @@ export const useChatStore = create<ChatStore>((set) => ({
   isLoadingConversations: false,
   setIsLoadingConversations: (isLoadingConversations) =>
     set({ isLoadingConversations }),
-  unreadCountByConversationId: {},
-  setUnreadCountByConversationId: (unreadCountByConversationId) =>
-    set({ unreadCountByConversationId }),
+  incrementUnread: (conversationId: string) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, unreadCount: c.unreadCount + 1 } : c
+      ),
+    })),
   resetUnread: (conversationId) =>
     set((state) => ({
-      unreadCountByConversationId: {
-        ...state.unreadCountByConversationId,
-        [conversationId]: 0,
+      conversations: state.conversations.map((c) =>
+        c.id === conversationId ? { ...c, unreadCount: 0 } : c
+      ),
+    })),
+  addTyping: (conversationId: string, userId: string) =>
+    set((state) => ({
+      typingByConversationId: {
+        ...state.typingByConversationId,
+        [conversationId]: {
+          ...(state.typingByConversationId[conversationId] || {}),
+          [userId]: true,
+        },
       },
     })),
+  removeTyping: (conversationId: string, userId: string) =>
+    set((state) => {
+      const conversationTyping = {
+        ...(state.typingByConversationId[conversationId] || {}),
+      };
+      delete conversationTyping[userId];
+      return {
+        typingByConversationId: {
+          ...state.typingByConversationId,
+          [conversationId]: conversationTyping,
+        },
+      };
+    }),
   typingByConversationId: {},
   setTypingByConversationId: (typingByConversationId) =>
     set({ typingByConversationId }),

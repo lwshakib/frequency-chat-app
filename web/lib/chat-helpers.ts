@@ -1,3 +1,6 @@
+import { CONVERSATION_TYPE, Conversation, User } from "@/types";
+import { ApiConversation, ApiUser } from "./api";
+
 export const getInitials = (name: string) => {
   if (!name) return "?";
   const parts = name.split(" ");
@@ -43,3 +46,37 @@ export const formatMessageTime = (date: Date | string | number) => {
   const d = new Date(date);
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 };
+
+// Helper to convert API user to frontend User type
+export function toUser(apiUser: ApiUser): User {
+  return {
+    id: apiUser.id,
+    name: apiUser.name,
+    email: apiUser.email,
+    image: apiUser.image,
+    createdAt: new Date(apiUser.createdAt),
+    updatedAt: new Date(apiUser.updatedAt),
+  };
+}
+
+// Helper to convert API conversation to frontend Conversation type
+export function toConversation(apiConv: ApiConversation): Conversation {
+  return {
+    id: apiConv.id,
+    name: apiConv.name,
+    description: apiConv.description,
+    type:
+      apiConv.type === "GROUP"
+        ? CONVERSATION_TYPE.GROUP
+        : CONVERSATION_TYPE.ONE_TO_ONE,
+    users: apiConv.users.map(toUser),
+    admins: apiConv.admins?.map((a: any) => a.id) || [],
+    messages: [],
+    lastMessageId: apiConv.lastMessageId,
+    lastMessage: apiConv.lastMessage,
+    imageUrl: apiConv.imageUrl,
+    unreadCount: apiConv.unreadCount || 0,
+    createdAt: new Date(apiConv.updatedAt),
+    updatedAt: new Date(apiConv.updatedAt),
+  };
+}

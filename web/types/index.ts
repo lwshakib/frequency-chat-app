@@ -36,6 +36,8 @@ export interface Conversation {
   imageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
+  unreadCount: number;
+  isVirtual?: boolean;
 }
 
 export interface Message {

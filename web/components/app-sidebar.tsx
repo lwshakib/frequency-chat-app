@@ -24,6 +24,8 @@ import { Users } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ModeToggle } from "@/components/mode-toggle";
+import { useSocket } from "@/context/socket-provider";
+
 import {
   searchUsers,
   getConversations,
@@ -34,39 +36,7 @@ import {
   type ApiConversation,
 } from "@/lib/api";
 
-// Helper to convert API user to frontend User type
-function toUser(apiUser: ApiUser): User {
-  return {
-    id: apiUser.id,
-    clerkId: apiUser.id, // Using id as clerkId for compatibility
-    name: apiUser.name,
-    email: apiUser.email,
-    image: apiUser.image,
-    createdAt: new Date(apiUser.createdAt),
-    updatedAt: new Date(apiUser.updatedAt),
-  };
-}
-
-// Helper to convert API conversation to frontend Conversation type
-function toConversation(apiConv: ApiConversation): Conversation {
-  return {
-    id: apiConv.id,
-    name: apiConv.name,
-    description: apiConv.description,
-    type:
-      apiConv.type === "GROUP"
-        ? CONVERSATION_TYPE.GROUP
-        : CONVERSATION_TYPE.ONE_TO_ONE,
-    users: apiConv.users.map(toUser),
-    admins: apiConv.admins.map((a) => a.id),
-    messages: [],
-    lastMessageId: apiConv.lastMessageId,
-    lastMessage: apiConv.lastMessage,
-    imageUrl: apiConv.imageUrl,
-    createdAt: new Date(apiConv.updatedAt),
-    updatedAt: new Date(apiConv.updatedAt),
-  };
-}
+import { toUser, toConversation } from "@/lib/chat-helpers";
 
 // --- Header Component ---
 export function SidebarHeaderBar() {
@@ -102,7 +72,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setSelectedConversation,
     isLoadingConversations,
     setIsLoadingConversations,
-    unreadCountByConversationId,
     resetUnread,
     typingByConversationId,
     session,
@@ -169,25 +138,51 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const handleSelectContact = async (selectedUser: User) => {
     if (!user?.id) return;
 
-    try {
-      const apiConversation = await createOneToOneConversation([
-        user.id,
-        selectedUser.id,
-      ]);
-      const newConversation = toConversation(apiConversation);
+    // 1. Check if a 1-on-1 conversation already exists with this user
+    const existingConv = conversations.find(
+      (c) =>
+        c.type === CONVERSATION_TYPE.ONE_TO_ONE &&
+        c.users.some((u) => u.id === selectedUser.id)
+    );
 
-      // Add to conversations if not already there
-      const exists = conversations.find((c) => c.id === newConversation.id);
-      if (!exists) {
-        setConversations([newConversation, ...conversations]);
-      }
-
-      setSelectedConversation(newConversation);
+    if (existingConv) {
+      setSelectedConversation(existingConv);
       setIsDialogOpen(false);
       setUserSearch("");
-    } catch (error) {
-      console.error("Error creating contact conversation:", error);
+      return;
     }
+
+    // 2. If not, create a virtual conversation (client-side only for now)
+    const virtualConv: Conversation = {
+      id: `virtual-${selectedUser.id}`,
+      name: selectedUser.name,
+      description: null,
+      type: CONVERSATION_TYPE.ONE_TO_ONE,
+      users: [
+        {
+          id: user.id,
+          name: user.name || "Me",
+          email: user.email || "",
+          image: user.image,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as User,
+        selectedUser,
+      ],
+      admins: [],
+      messages: [],
+      lastMessageId: null,
+      lastMessage: null,
+      imageUrl: selectedUser.image,
+      unreadCount: 0,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isVirtual: true,
+    };
+
+    setSelectedConversation(virtualConv);
+    setIsDialogOpen(false);
+    setUserSearch("");
   };
 
   // Handle creating a group conversation
@@ -220,6 +215,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       const newConversation = toConversation(apiConversation);
       setConversations([newConversation, ...conversations]);
+
       setSelectedConversation(newConversation);
 
       // Reset form
@@ -334,7 +330,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <ConversationList
                   conversations={filteredConversations}
                   currentUserId={user?.id}
-                  unreadCountByConversationId={unreadCountByConversationId}
                   typingByConversationId={typingByConversationId}
                   onClickConversation={handleConversationClick}
                   selectedConversationId={selectedConversation?.id}

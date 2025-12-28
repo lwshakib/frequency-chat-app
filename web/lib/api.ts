@@ -70,6 +70,7 @@ export interface ApiConversation {
   admins: { id: string; name: string }[];
   lastMessage: { content: string } | null;
   lastMessageId: string | null;
+  unreadCount?: number;
   updatedAt: string;
 }
 
@@ -139,6 +140,46 @@ export async function createGroupConversation(params: {
     }
   );
   return response.data;
+}
+
+// ============ MESSAGES API ============
+
+export interface ApiMessage {
+  id: string;
+  content: string;
+  type: string;
+  files: any[];
+  senderId: string;
+  conversationId: string;
+  isRead: string;
+  createdAt: string;
+  updatedAt: string;
+  sender: ApiUser;
+}
+
+export interface GetMessagesResponse {
+  statusCode: number;
+  data: {
+    messages: ApiMessage[];
+  };
+  message: string;
+}
+
+export async function getMessages(
+  conversationId: string
+): Promise<ApiMessage[]> {
+  const response = await fetchApi<GetMessagesResponse>(
+    `/messages/${conversationId}`
+  );
+  return response.data.messages;
+}
+
+export async function markMessagesAsRead(
+  conversationId: string
+): Promise<void> {
+  await fetchApi(`/messages/read/${conversationId}`, {
+    method: "PUT",
+  });
 }
 
 // ============ CLOUDINARY API ============

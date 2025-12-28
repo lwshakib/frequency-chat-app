@@ -10,6 +10,13 @@ import routes from "./routes";
 import { WEB_URL } from "./env";
 import { errorHandler } from "./middlewares/error.middlewares";
 import morganMiddleware from "./logger/morgan.logger";
+import {
+  gracefulShutdown,
+  startMessageConsumer,
+  startPresenceConsumer,
+  createTopics,
+} from "./services/kafka.services";
+import SocketService from "./services/socket.services";
 
 const app = express();
 
@@ -38,6 +45,45 @@ app.get("/health", (req, res) => {
 app.use("/api", routes);
 
 const httpServer = http.createServer(app);
+const socketService = new SocketService();
+
+// Initialize Kafka topics and consumers
+async function initializeKafka() {
+  try {
+    // Create topics first
+    await createTopics();
+
+    // Then start consumers
+    await startMessageConsumer();
+    await startPresenceConsumer();
+
+    console.log("Kafka initialization completed successfully");
+  } catch (error) {
+    console.error("Failed to initialize Kafka:", error);
+    console.log("Application will continue without Kafka");
+  }
+}
+
+// Start Kafka initialization (non-blocking)
+initializeKafka();
+
+socketService.io.attach(httpServer);
+socketService.initListeners();
+
 app.use(morganMiddleware);
 app.use(errorHandler);
+
+// Graceful shutdown handling
+process.on("SIGINT", async () => {
+  console.log("\nReceived SIGINT. Gracefully shutting down...");
+  await gracefulShutdown();
+  process.exit(0);
+});
+
+process.on("SIGTERM", async () => {
+  console.log("\nReceived SIGTERM. Gracefully shutting down...");
+  await gracefulShutdown();
+  process.exit(0);
+});
+
 export default httpServer;

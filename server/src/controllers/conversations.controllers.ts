@@ -106,13 +106,37 @@ export const getConversations = asyncHandler(
       },
     });
 
-    // Minimal transform: keep lastMessage as object (content only), and flatten admin.user
+    // Fetch unread counts for all these conversations for the current user in one go
+    const unreadCounts = await prisma.message.groupBy({
+      by: ["conversationId"],
+      where: {
+        conversationId: {
+          in: conversations.map((c) => c.id),
+        },
+        senderId: {
+          not: currentUserId,
+        },
+        isRead: "UNREAD",
+      },
+      _count: {
+        _all: true,
+      },
+    });
+
+    // Create a map for easy lookup
+    const unreadMap: Record<string, number> = {};
+    unreadCounts.forEach((uc) => {
+      unreadMap[uc.conversationId] = uc._count._all;
+    });
+
+    // Minimal transform: keep lastMessage as object (content only), flatten admin.user, and add unreadCount
     const shaped = conversations.map((c) => ({
       ...c,
       admins: c.admins.map((a: any) => ({
         id: a.user.id,
         name: a.user.name,
       })),
+      unreadCount: unreadMap[c.id] || 0,
     }));
 
     res
@@ -150,6 +174,14 @@ export const getConversationById = asyncHandler(
       throw new ApiError(404, "Conversation not found");
     }
 
+    const unreadCount = await prisma.message.count({
+      where: {
+        conversationId,
+        senderId: { not: currentUserId },
+        isRead: "UNREAD",
+      },
+    });
+
     // Transform the conversation data to match the expected structure
     const transformedConversation = {
       ...conversation,
@@ -160,6 +192,7 @@ export const getConversationById = asyncHandler(
         id: admin.user.id,
         name: admin.user.name,
       })),
+      unreadCount,
     };
 
     res
@@ -214,26 +247,49 @@ export const createConversation = asyncHandler(
           },
         },
         include: {
-          lastMessage: true,
-          users: true,
+          lastMessage: {
+            select: { content: true },
+          },
+          users: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              isOnline: true,
+              lastOnlineAt: true,
+            },
+          },
+          admins: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       });
 
       if (existingConversation) {
+        // Transform consistent with index
+        const shaped = {
+          ...existingConversation,
+          admins: existingConversation.admins.map((a: any) => ({
+            id: a.user.id,
+            name: a.user.name,
+          })),
+        };
+
         res
           .status(200)
-          .json(
-            new ApiResponse(
-              200,
-              existingConversation,
-              "Conversation already exists"
-            )
-          );
+          .json(new ApiResponse(200, shaped, "Conversation already exists"));
         return;
       }
 
       // Create new one-to-one conversation if none exists
-      const newConversation = await prisma.conversation.create({
+      const newConversation: any = await prisma.conversation.create({
         data: {
           users: {
             connect: validatedIds.map((userId) => ({ id: userId })),
@@ -243,19 +299,43 @@ export const createConversation = asyncHandler(
           imageUrl: validatedImageUrl ?? null,
         },
         include: {
-          lastMessage: true,
-          users: true,
+          lastMessage: {
+            select: { content: true },
+          },
+          users: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              isOnline: true,
+              lastOnlineAt: true,
+            },
+          },
+          admins: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
         },
       });
+
+      const shapedNew = {
+        ...newConversation,
+        admins: newConversation.admins.map((a: any) => ({
+          id: a.user.id,
+          name: a.user.name,
+        })),
+      };
 
       res
         .status(201)
         .json(
-          new ApiResponse(
-            201,
-            newConversation,
-            "Conversation created successfully"
-          )
+          new ApiResponse(201, shapedNew, "Conversation created successfully")
         );
     } else {
       const newConversation = await prisma.conversation.create({
@@ -274,24 +354,43 @@ export const createConversation = asyncHandler(
           },
         },
         include: {
-          lastMessage: true,
-          users: true,
+          lastMessage: {
+            select: { content: true },
+          },
+          users: {
+            select: {
+              id: true,
+              name: true,
+              image: true,
+              isOnline: true,
+              lastOnlineAt: true,
+            },
+          },
           admins: {
             include: {
-              user: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           },
         },
       });
 
+      const shaped = {
+        ...newConversation,
+        admins: newConversation.admins.map((a: any) => ({
+          id: a.user.id,
+          name: a.user.name,
+        })),
+      };
+
       res
         .status(201)
         .json(
-          new ApiResponse(
-            201,
-            newConversation,
-            "Conversation created successfully"
-          )
+          new ApiResponse(201, shaped, "Conversation created successfully")
         );
     }
   }
