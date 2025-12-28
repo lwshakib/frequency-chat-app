@@ -19,7 +19,7 @@ export interface User {
   fullName?: string | null;
   firstName?: string | null;
   emailAddresses?: { emailAddress: string }[];
-  isOnline: boolean;
+  isOnline?: boolean;
   lastOnlineAt?: Date;
   createdAt: Date;
   updatedAt: Date;

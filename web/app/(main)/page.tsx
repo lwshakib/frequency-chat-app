@@ -54,7 +54,7 @@ import {
   searchMessages as searchMessagesApi,
   type ApiMessage,
 } from "@/lib/api";
-import { toConversation } from "@/lib/chat-helpers";
+import { toConversation, toUser } from "@/lib/chat-helpers";
 
 function toMessage(apiMsg: ApiMessage): Message {
   return {
@@ -67,11 +67,7 @@ function toMessage(apiMsg: ApiMessage): Message {
     isRead: apiMsg.isRead as any,
     createdAt: new Date(apiMsg.createdAt),
     updatedAt: new Date(apiMsg.updatedAt),
-    sender: {
-      ...apiMsg.sender,
-      createdAt: new Date(apiMsg.sender.createdAt),
-      updatedAt: new Date(apiMsg.sender.updatedAt),
-    } as User,
+    sender: toUser(apiMsg.sender),
   };
 }
 

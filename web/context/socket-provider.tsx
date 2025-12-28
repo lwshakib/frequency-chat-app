@@ -327,7 +327,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
                 ? {
                     ...u,
                     isOnline: payload.isOnline,
-                    lastOnlineAt: payload.lastOnlineAt,
+                    lastOnlineAt: new Date(payload.lastOnlineAt),
                   }
                 : u
             ),
@@ -348,7 +348,7 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
                 ? {
                     ...u,
                     isOnline: payload.isOnline,
-                    lastOnlineAt: payload.lastOnlineAt,
+                    lastOnlineAt: new Date(payload.lastOnlineAt),
                   }
                 : u
             ),

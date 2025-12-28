@@ -54,6 +54,10 @@ export function toUser(apiUser: ApiUser): User {
     name: apiUser.name,
     email: apiUser.email,
     image: apiUser.image,
+    isOnline: apiUser.isOnline || false,
+    lastOnlineAt: apiUser.lastOnlineAt
+      ? new Date(apiUser.lastOnlineAt)
+      : undefined,
     createdAt: new Date(apiUser.createdAt),
     updatedAt: new Date(apiUser.updatedAt),
   };
