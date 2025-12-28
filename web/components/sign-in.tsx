@@ -7,13 +7,17 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { useState } from "react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { CheckCircle2 } from "lucide-react";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const showVerifyMessage = searchParams.get("verify") === "true";
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -25,6 +29,8 @@ export default function SignIn() {
       {
         email,
         password,
+        callbackURL:
+          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/",
       },
       {
         onRequest: () => {
@@ -63,6 +69,17 @@ export default function SignIn() {
             </h1>
             <p className="text-sm">Welcome back! Sign in to continue</p>
           </div>
+
+          {showVerifyMessage && (
+            <Alert className="mt-4 border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>Account created</AlertTitle>
+              <AlertDescription>
+                We've sent a verification link to your email address. Please
+                verify your account to sign in.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <div className="mt-6 space-y-6">
             <div className="space-y-2">

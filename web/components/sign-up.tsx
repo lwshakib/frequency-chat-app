@@ -28,15 +28,16 @@ export default function SignUp() {
         email,
         password,
         name: `${firstName} ${lastName}`,
+        callbackURL:
+          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/",
       },
       {
         onRequest: () => {
           setLoading(true);
         },
         onSuccess: () => {
-          toast.success("Account created successfully");
-          router.push("/");
           setLoading(false);
+          router.push("/sign-in?verify=true");
         },
         onError: (ctx) => {
           toast.error(ctx.error.message);
