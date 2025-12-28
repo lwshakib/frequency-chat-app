@@ -18,6 +18,10 @@ interface ChatStore {
   resetUnread: (conversationId: string) => void;
   typingByConversationId: Record<string, any>;
   setTypingByConversationId: (typing: Record<string, any>) => void;
+  messages: any[];
+  setMessages: (messages: any[]) => void;
+  isLoadingMessages: boolean;
+  setIsLoadingMessages: (loading: boolean) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -44,4 +48,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   typingByConversationId: {},
   setTypingByConversationId: (typingByConversationId) =>
     set({ typingByConversationId }),
+  messages: [],
+  setMessages: (messages) => set({ messages }),
+  isLoadingMessages: false,
+  setIsLoadingMessages: (isLoadingMessages) => set({ isLoadingMessages }),
 }));

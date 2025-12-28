@@ -20,10 +20,88 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useState, useEffect, useRef } from "react";
+import MessagesArea from "@/components/chat/MessagesArea";
+import MessageInput from "@/components/chat/MessageInput";
+import { MESSAGE_READ_STATUS, Message } from "@/types";
 
 export default function Page() {
-  const { selectedConversation, session } = useChatStore();
+  const {
+    selectedConversation,
+    session,
+    messages,
+    setMessages,
+    isLoadingMessages,
+    setIsLoadingMessages,
+  } = useChatStore();
   const currentUser = session?.user;
+  const [messageInput, setMessageInput] = useState("");
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      setIsLoadingMessages(true);
+      // Simulate API call and add dummy messages
+      setTimeout(() => {
+        const dummyMessages: Message[] = [
+          {
+            id: "1",
+            content: "Hey there! How's it going?",
+            senderId: "other-user",
+            conversationId: selectedConversation.id,
+            type: "text",
+            isRead: MESSAGE_READ_STATUS.READ,
+            createdAt: new Date(Date.now() - 3600000),
+            updatedAt: new Date(Date.now() - 3600000),
+            sender: (selectedConversation.users.find(
+              (u) => u.id !== currentUser?.id
+            ) || currentUser) as User,
+          },
+          {
+            id: "2",
+            content: "Hi! Just working on the chat app. It's looking good!",
+            senderId: currentUser?.id || "me",
+            conversationId: selectedConversation.id,
+            type: "text",
+            isRead: MESSAGE_READ_STATUS.READ,
+            createdAt: new Date(Date.now() - 1800000),
+            updatedAt: new Date(Date.now() - 1800000),
+            sender: currentUser as User,
+          },
+        ];
+        setMessages(dummyMessages);
+        setIsLoadingMessages(false);
+      }, 500);
+    } else {
+      setMessages([]);
+    }
+  }, [selectedConversation, currentUser, setMessages, setIsLoadingMessages]);
+
+  const handleSendMessage = () => {
+    if (!messageInput.trim() || !currentUser || !selectedConversation) return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content: messageInput,
+      senderId: currentUser.id,
+      conversationId: selectedConversation.id,
+      type: "text",
+      isRead: MESSAGE_READ_STATUS.UNREAD,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sender: currentUser,
+    };
+
+    setMessages([...messages, newMessage]);
+    setMessageInput("");
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
   if (!selectedConversation) {
     return (
@@ -51,9 +129,9 @@ export default function Page() {
       : otherUser?.image;
 
   return (
-    <div className="flex flex-1 flex-col h-full bg-background">
+    <div className="flex flex-1 flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="border-b px-4 py-3 flex items-center gap-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+      <div className="border-b px-4 py-3 flex items-center gap-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 shrink-0">
         <Avatar className="h-10 w-10 border shadow-sm">
           <AvatarImage
             src={conversationImage || ""}
@@ -143,12 +221,44 @@ export default function Page() {
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col p-4 md:p-6 overflow-hidden relative">
-        <div className="flex-1 overflow-y-auto flex items-center justify-center text-muted-foreground text-sm">
-          Messages will appear here
-        </div>
-      </div>
+      <MessagesArea
+        conversation={selectedConversation}
+        messages={messages}
+        isLoading={isLoadingMessages}
+        isCurrentUser={(id) => id === currentUser?.id}
+        scrollAreaRef={scrollAreaRef}
+      />
+
+      <MessageInput
+        messageInput={messageInput}
+        onChangeMessage={(e) => setMessageInput(e.target.value)}
+        onKeyPress={handleKeyPress}
+        onSendMessage={(content, files) => {
+          if (!content.trim() && (!files || files.length === 0)) return;
+
+          const newMessage: Message = {
+            id: Date.now().toString(),
+            content: content,
+            files: files,
+            senderId: currentUser!.id,
+            conversationId: selectedConversation.id,
+            type:
+              files && files.length > 0
+                ? content
+                  ? "text+files"
+                  : "files"
+                : "text",
+            isRead: MESSAGE_READ_STATUS.UNREAD,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            sender: currentUser as User,
+          };
+
+          setMessages([...messages, newMessage]);
+          setMessageInput("");
+        }}
+        onEmojiSelect={(emoji) => setMessageInput((prev) => prev + emoji)}
+      />
     </div>
   );
 }
