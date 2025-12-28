@@ -150,6 +150,7 @@ export interface CloudinarySignatureResponse {
     timestamp: number;
     cloudName: string;
     apiKey: string;
+    folder: string;
   };
   message: string;
 }
@@ -164,7 +165,7 @@ export async function getCloudinarySignature(): Promise<
 }
 
 export async function uploadToCloudinary(file: File): Promise<string> {
-  const { signature, timestamp, cloudName, apiKey } =
+  const { signature, timestamp, cloudName, apiKey, folder } =
     await getCloudinarySignature();
 
   const formData = new FormData();
@@ -172,6 +173,7 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   formData.append("signature", signature);
   formData.append("timestamp", timestamp.toString());
   formData.append("api_key", apiKey);
+  formData.append("folder", folder);
 
   const response = await fetch(
     `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
