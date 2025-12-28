@@ -26,10 +26,24 @@ import {
 } from "@/components/ui/sidebar";
 import { useChatStore } from "@/context";
 
+import { authClient } from "@/lib/auth-client";
+import { useRouter } from "next/navigation";
+
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { session } = useChatStore();
   const user = session?.user;
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/sign-in");
+        },
+      },
+    });
+  };
 
   if (!user) return null;
 
@@ -44,7 +58,9 @@ export function NavUser() {
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.image ?? ""} alt={user.name} />
-                <AvatarFallback className="rounded-lg">{user.name[0]}</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {user.name[0]}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -91,7 +107,7 @@ export function NavUser() {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
               <IconLogout />
               Log out
             </DropdownMenuItem>
