@@ -27,6 +27,7 @@ export interface Conversation {
   messages: any[];
   lastMessageId: string | null;
   lastMessage: any | null;
+  imageUrl?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

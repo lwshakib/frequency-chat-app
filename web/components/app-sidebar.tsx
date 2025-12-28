@@ -62,6 +62,7 @@ function toConversation(apiConv: ApiConversation): Conversation {
     messages: [],
     lastMessageId: apiConv.lastMessageId,
     lastMessage: apiConv.lastMessage,
+    imageUrl: apiConv.imageUrl,
     createdAt: new Date(apiConv.updatedAt),
     updatedAt: new Date(apiConv.updatedAt),
   };
@@ -76,7 +77,7 @@ export function SidebarHeaderBar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5 hover:bg-transparent active:bg-transparent focus:bg-transparent"
+              className="data-[slot=sidebar-menu-button]:p-1.5! hover:bg-transparent active:bg-transparent focus:bg-transparent"
             >
               <Link href="/">
                 <Logo />
