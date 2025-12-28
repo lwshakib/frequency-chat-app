@@ -12,6 +12,18 @@ The frontend for the Frequency Chat App, built with Next.js 15, Tailwind CSS, an
 - **State Management**: Efficient client-side state with Zustand.
 - **Form Handling**: Robust form validation using React Hook Form and Zod.
 
+## 🔄 Data Flow
+
+```mermaid
+graph LR
+    User([User Action]) --> Store[Zustand Store]
+    Store --> UI[React UI Update]
+    Store --> Socket[Socket.io Event]
+    Store --> API[REST API Call]
+    Socket --> Store
+    API --> Store
+```
+
 ## 🛠️ Technologies
 
 - **Framework**: Next.js 15 (App Router)

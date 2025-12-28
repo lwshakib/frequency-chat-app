@@ -12,6 +12,18 @@ A modern, real-time chat application built with Next.js, Express, Socket.io, and
 - **Performance**: High-performance backend using Bun and Prisma with PostgreSQL.
 - **Scalability**: Integrated with Redis and Kafka for advanced message handling and scalability.
 
+## 🏗️ Architecture
+
+```mermaid
+graph TD
+    Client[Web Client - Next.js] <--> Server[API Server - Express]
+    Server <--> DB[(PostgreSQL)]
+    Server <--> Redis((Redis))
+    Server <--> Kafka{Kafka}
+    Server --> Cloudinary[Cloudinary]
+    Server <--> BetterAuth[Better Auth]
+```
+
 ## 🛠️ Tech Stack
 
 ### Frontend

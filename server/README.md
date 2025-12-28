@@ -72,6 +72,15 @@ The backend for the Frequency Chat App, built with Express, Socket.io, and Prism
    REDIS_PASSWORD=your_password
    REDIS_HOST=localhost
    REDIS_PORT=6379
+
+   # Email (SMTP)
+   # Development (MailHog)
+   MAILHOG_SMTP_HOST="localhost"
+   MAILHOG_SMTP_PORT="1025"
+
+   # Production (Gmail)
+   GMAIL_USER=your_email@gmail.com
+   GMAIL_PASS=your_app_password
    ```
 
 3. **Database Setup:**
