@@ -195,3 +195,63 @@ export const markAllAsRead = asyncHandler(
       .json(new ApiResponse(200, null, "All messages marked as read"));
   }
 );
+
+export const searchMessages = asyncHandler(
+  async (req: Request, res: Response) => {
+    // @ts-ignore
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+    const { q } = req.query as { q?: string };
+
+    if (!q || !q.trim()) {
+      throw new ApiError(400, "Search query is required");
+    }
+
+    const conversation = await prisma.conversation.findFirst({
+      where: {
+        id: conversationId,
+        users: {
+          some: {
+            id: userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!conversation) {
+      throw new ApiError(403, "Not authorized to access this conversation");
+    }
+
+    const messages = await prisma.message.findMany({
+      where: {
+        conversationId,
+        content: {
+          contains: q,
+          mode: "insensitive",
+        },
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(200, { messages }, "Messages searched successfully")
+      );
+  }
+);

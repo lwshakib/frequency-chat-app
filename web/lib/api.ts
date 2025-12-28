@@ -142,6 +142,14 @@ export async function createGroupConversation(params: {
   return response.data;
 }
 
+export async function deleteConversation(
+  conversationId: string
+): Promise<void> {
+  await fetchApi(`/conversations/${conversationId}`, {
+    method: "DELETE",
+  });
+}
+
 // ============ MESSAGES API ============
 
 export interface ApiMessage {
@@ -180,6 +188,16 @@ export async function markMessagesAsRead(
   await fetchApi(`/messages/read/${conversationId}`, {
     method: "PUT",
   });
+}
+
+export async function searchMessages(
+  conversationId: string,
+  query: string
+): Promise<ApiMessage[]> {
+  const response = await fetchApi<GetMessagesResponse>(
+    `/messages/search/${conversationId}?q=${encodeURIComponent(query)}`
+  );
+  return response.data.messages;
 }
 
 // ============ CLOUDINARY API ============

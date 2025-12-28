@@ -7,9 +7,44 @@ import { FileIcon, Download } from "lucide-react";
 type Props = {
   messages: Message[];
   isCurrentUser: (senderId: string) => boolean;
+  highlight?: string;
 };
 
-export default function MessagesList({ messages, isCurrentUser }: Props) {
+const HighlightText = ({
+  text,
+  highlight,
+}: {
+  text: string;
+  highlight?: string;
+}) => {
+  if (!highlight || !highlight.trim()) {
+    return <>{text}</>;
+  }
+
+  const parts = text.split(new RegExp(`(${highlight})`, "gi"));
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <mark
+            key={i}
+            className="bg-yellow-200 text-yellow-900 rounded-sm px-0.5"
+          >
+            {part}
+          </mark>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
+
+export default function MessagesList({
+  messages,
+  isCurrentUser,
+  highlight,
+}: Props) {
   return (
     <div className="flex flex-col gap-4">
       {messages.map((message) => {
@@ -83,7 +118,14 @@ export default function MessagesList({ messages, isCurrentUser }: Props) {
                       })}
                     </div>
                   )}
-                  {message.content && <div>{message.content}</div>}
+                  {message.content && (
+                    <div>
+                      <HighlightText
+                        text={message.content}
+                        highlight={highlight}
+                      />
+                    </div>
+                  )}
                 </div>
                 <span className="mt-1 text-[10px] text-muted-foreground px-1">
                   {formatMessageTime(message.createdAt)}

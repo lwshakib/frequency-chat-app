@@ -4,6 +4,7 @@ import {
   getMessages,
   updateMessages,
   markAllAsRead,
+  searchMessages,
 } from "../controllers/messages.controllers";
 import { requireAuth } from "../middlewares/auth.middlewares";
 
@@ -13,6 +14,7 @@ messagesRouter.use(requireAuth);
 
 messagesRouter.post("/:conversationId", createMessage);
 messagesRouter.get("/:conversationId", getMessages);
+messagesRouter.get("/search/:conversationId", searchMessages);
 messagesRouter.put("/read/:conversationId", markAllAsRead);
 messagesRouter.put("/", updateMessages);
 

@@ -30,6 +30,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import MessagesArea from "@/components/chat/MessagesArea";
 import MessageInput from "@/components/chat/MessageInput";
@@ -39,6 +50,8 @@ import {
   getMessages,
   createOneToOneConversation,
   markMessagesAsRead,
+  deleteConversation as deleteConversationApi,
+  searchMessages as searchMessagesApi,
   type ApiMessage,
 } from "@/lib/api";
 import { toConversation } from "@/lib/chat-helpers";
@@ -76,12 +89,65 @@ export default function Page() {
     activeCall,
     setActiveCall,
   } = useChatStore();
-  const { sendMessage, emitTypingStart, emitTypingStop, emitCallStart } =
-    useSocket();
+  const {
+    sendMessage,
+    emitTypingStart,
+    emitTypingStop,
+    emitCallStart,
+    emitDeleteConversation,
+  } = useSocket();
   const currentUser = session?.user;
   const [messageInput, setMessageInput] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Message[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!selectedConversation || !query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await searchMessagesApi(selectedConversation.id, query);
+      setSearchResults(results.map(toMessage));
+    } catch (error) {
+      console.error("Search failed:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleDeleteConversation = async () => {
+    if (!selectedConversation) return;
+
+    try {
+      await deleteConversationApi(selectedConversation.id);
+
+      // Emit socket event to notify others
+      emitDeleteConversation(selectedConversation);
+
+      // Local update
+      const allConversations = useChatStore.getState().conversations;
+      setConversations(
+        allConversations.filter((c) => c.id !== selectedConversation.id)
+      );
+      setSelectedConversation(null);
+
+      toast.success("Conversation deleted");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete conversation");
+    } finally {
+      setIsDeleteDialogOpen(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedConversation && !selectedConversation.isVirtual) {
@@ -280,111 +346,200 @@ export default function Page() {
   return (
     <div className="flex flex-1 flex-col h-full bg-background overflow-hidden">
       {/* Header */}
-      <div className="border-b px-4 py-3 flex items-center gap-3 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 shrink-0">
-        <Avatar className="h-10 w-10 border shadow-sm">
-          <AvatarImage
-            src={conversationImage || ""}
-            alt={conversationName || "Conversation"}
-            className="object-cover"
-          />
-          <AvatarFallback className="bg-muted">
-            {selectedConversation.type === CONVERSATION_TYPE.GROUP ? (
-              <Users className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <span className="text-sm font-medium">
-                {conversationName?.charAt(0).toUpperCase() || "?"}
-              </span>
-            )}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex flex-col">
-          <h2 className="text-sm font-semibold leading-none mb-1">
-            {conversationName}
-          </h2>
-          {selectedConversation.type === CONVERSATION_TYPE.GROUP ? (
-            <p className="text-xs text-muted-foreground">
-              {selectedConversation.users.length + 1} members{" "}
-              {selectedConversation.description &&
-                `• ${selectedConversation.description}`}
-            </p>
-          ) : (
-            <p className="text-xs text-muted-foreground">{otherUser?.email}</p>
-          )}
-        </div>
+      <div className="flex h-18 shrink-0 items-center gap-4 border-b bg-background/95 backdrop-blur-sm px-4 md:px-6 shadow-xs sticky top-0 z-10">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setSelectedConversation(null)}
+          className="md:hidden"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
 
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleStartCall("AUDIO")}
-            className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Phone className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handleStartCall("VIDEO")}
-            className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Video className="h-4 w-4" />
-          </Button>
+        {isSearchMode ? (
+          <div className="flex-1 flex items-center gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search messages..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="w-full bg-muted/50 border-none rounded-full py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/20 outline-hidden transition-all placeholder:text-muted-foreground/60"
+              />
+              {isSearching && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <span className="flex h-2 w-2 rounded-full bg-primary animate-ping" />
+                </div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsSearchMode(false);
+                setSearchQuery("");
+                setSearchResults([]);
+              }}
+              className="rounded-full text-xs font-medium px-4 hover:bg-muted"
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <Avatar className="h-10 w-10 border-2 border-primary/10 transition-transform hover:scale-105">
+                <AvatarImage
+                  src={conversationImage || ""}
+                  alt={conversationName || ""}
+                  className="object-cover"
+                />
+                <AvatarFallback className="bg-primary/5 text-primary text-sm font-bold">
+                  {conversationName?.charAt(0).toUpperCase() || "?"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col min-w-0">
+                <h2 className="text-sm font-semibold leading-none truncate mb-1">
+                  {conversationName}
+                </h2>
+                {selectedConversation.type === CONVERSATION_TYPE.GROUP ? (
+                  <p className="text-[11px] text-muted-foreground/80 truncate">
+                    {selectedConversation.users.length + 1} members{" "}
+                    {selectedConversation.description &&
+                      `• ${selectedConversation.description}`}
+                  </p>
+                ) : (
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        otherUser?.isOnline
+                          ? "bg-green-500"
+                          : "bg-muted-foreground/30"
+                      }`}
+                    />
+                    <p className="text-[11px] text-muted-foreground/80 truncate">
+                      {otherUser?.isOnline ? "Active now" : "Offline"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <div className="flex items-center gap-1">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 text-muted-foreground"
+                onClick={() => handleStartCall("AUDIO")}
+                className="h-9 w-9 text-muted-foreground hover:text-primary transition-all rounded-full hover:bg-primary/5"
               >
-                <MoreVertical className="h-4 w-4" />
+                <Phone className="h-4.5 w-4.5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">View Details</span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  <span className="text-sm">Search Messages</span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <div className="flex items-center gap-2">
-                  <Bell className="h-4 w-4" />
-                  <span className="text-sm">Mute Notifications</span>
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="h-4 w-4" />
-                  <span className="text-sm">Clear Chat</span>
-                </div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleStartCall("VIDEO")}
+                className="h-9 w-9 text-muted-foreground hover:text-primary transition-all rounded-full hover:bg-primary/5"
+              >
+                <Video className="h-4.5 w-4.5" />
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-muted-foreground transition-all rounded-full hover:bg-muted"
+                  >
+                    <MoreVertical className="h-4.5 w-4.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 p-2 rounded-xl"
+                >
+                  <DropdownMenuItem className="rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">View Details</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="rounded-lg"
+                    onClick={() => setIsSearchMode(true)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Search className="h-4 w-4" />
+                      <span className="text-sm">Search Messages</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-4 w-4" />
+                      <span className="text-sm">Mute Notifications</span>
+                    </div>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Trash2 className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        Delete Conversation
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        )}
       </div>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              conversation and all associated messages for everyone in the chat.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConversation}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <MessagesArea
         conversation={selectedConversation}
-        messages={messages}
-        isLoading={isLoadingMessages}
+        messages={isSearchMode && searchQuery.trim() ? searchResults : messages}
+        isLoading={isSearchMode ? isSearching : isLoadingMessages}
         isCurrentUser={(id) => id === currentUser?.id}
         scrollAreaRef={scrollAreaRef}
+        highlight={searchQuery}
       />
 
-      <MessageInput
-        messageInput={messageInput}
-        onChangeMessage={handleInputChange}
-        onKeyPress={() => {}}
-        onSendMessage={handleSendMessage}
-        onEmojiSelect={(emoji) => setMessageInput((prev) => prev + emoji)}
-      />
+      {!isSearchMode && (
+        <MessageInput
+          messageInput={messageInput}
+          onChangeMessage={handleInputChange}
+          onKeyPress={() => {}}
+          onSendMessage={handleSendMessage}
+          onEmojiSelect={(emoji) => setMessageInput((prev) => prev + emoji)}
+        />
+      )}
     </div>
   );
 }

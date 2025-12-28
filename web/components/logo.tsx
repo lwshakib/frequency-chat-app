@@ -7,7 +7,7 @@ export const Logo = ({ className }: { className?: string }) => {
       <LogoIcon />
 
       {/* App name */}
-      <span className="text-sm font-semibold tracking-tight">Frequency</span>
+      <span className="text-lg font-semibold tracking-tight">Frequency</span>
     </div>
   );
 };
@@ -20,7 +20,7 @@ export const LogoIcon = ({ className }: { className?: string }) => {
       viewBox="0 0 48 48"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className={cn("size-5", className)}
+      className={cn("size-8", className)}
     >
       <g fill="currentColor" transform="translate(4, 0)">
         <path

@@ -13,6 +13,7 @@ type Props = {
   isLoading: boolean;
   isCurrentUser: (senderId: string) => boolean;
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
+  highlight?: string;
 };
 
 export default function MessagesArea({
@@ -21,6 +22,7 @@ export default function MessagesArea({
   isLoading,
   isCurrentUser,
   scrollAreaRef,
+  highlight,
 }: Props) {
   const { session, typingByConversationId } = useChatStore();
   const user = session?.user;
@@ -75,6 +77,7 @@ export default function MessagesArea({
                 <MessagesList
                   messages={messages}
                   isCurrentUser={isCurrentUser}
+                  highlight={highlight}
                 />
 
                 {/* Enhanced Typing Indicator */}
