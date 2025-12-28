@@ -1,6 +1,7 @@
 "use client";
 import { authClient } from "@/lib/auth-client";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function AuthLayout({
   children,
@@ -8,13 +9,17 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   const { data: session, isPending } = authClient.useSession();
+  const router = useRouter();
 
-  if (isPending) {
+  useEffect(() => {
+    if (!isPending && session) {
+      router.push("/");
+    }
+  }, [session, isPending, router]);
+
+  if (isPending || session) {
     return null;
   }
 
-  if (session) {
-    redirect("/");
-  }
   return <div className="w-full min-h-screen">{children}</div>;
 }

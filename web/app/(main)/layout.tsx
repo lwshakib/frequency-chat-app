@@ -7,7 +7,7 @@ import CallOverlay from "@/components/chat/call-overlay";
 import { authClient } from "@/lib/auth-client";
 import { useChatStore } from "@/context";
 import { useEffect } from "react";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function MainLayout({
   children,
@@ -16,19 +16,20 @@ export default function MainLayout({
 }) {
   const { data: session, isPending } = authClient.useSession();
   const { setSession } = useChatStore();
+  const router = useRouter();
 
   useEffect(() => {
-    if (session) {
-      setSession(session);
-    }
+    setSession(session);
   }, [session, setSession]);
 
-  if (isPending) {
-    return null;
-  }
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push("/sign-in");
+    }
+  }, [session, isPending, router]);
 
-  if (!session) {
-    redirect("/sign-in");
+  if (isPending || !session) {
+    return null;
   }
   return (
     <SocketProvider>
