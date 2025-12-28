@@ -4,11 +4,21 @@ import { useChatStore } from "@/context";
 import { CONVERSATION_TYPE, User } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
+  Search,
+  MessageSquare,
   Users,
+  Settings,
+  MoreVertical,
+  LogOut,
+  ChevronRight,
+  Plus,
+  ArrowLeft,
+  Paperclip,
+  Image as ImageIcon,
+  Smile,
+  Send,
   Phone,
   Video,
-  MoreVertical,
-  Search,
   Bell,
   Trash2,
 } from "lucide-react";
@@ -63,8 +73,11 @@ export default function Page() {
     resetUnread,
     isLoadingMessages,
     setIsLoadingMessages,
+    activeCall,
+    setActiveCall,
   } = useChatStore();
-  const { sendMessage, emitTypingStart, emitTypingStop } = useSocket();
+  const { sendMessage, emitTypingStart, emitTypingStop, emitCallStart } =
+    useSocket();
   const currentUser = session?.user;
   const [messageInput, setMessageInput] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -76,6 +89,29 @@ export default function Page() {
       resetUnread(selectedConversation.id);
     }
   }, [selectedConversation, resetUnread]);
+
+  const handleStartCall = (type: "AUDIO" | "VIDEO") => {
+    if (!selectedConversation || !currentUser) return;
+
+    const participants = selectedConversation.users.map((u) => u.id);
+    const otherUser = selectedConversation.users.find(
+      (u) => u.id !== currentUser.id
+    );
+
+    const callPayload = {
+      conversationId: selectedConversation.id,
+      type,
+      participants,
+      callerId: currentUser.id,
+      isOutgoing: true,
+      status: "CALLING" as any,
+      callee: otherUser,
+      isGroup: selectedConversation.type === CONVERSATION_TYPE.GROUP,
+    };
+
+    setActiveCall(callPayload);
+    emitCallStart(callPayload);
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -277,6 +313,23 @@ export default function Page() {
         </div>
 
         <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleStartCall("AUDIO")}
+            className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Phone className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleStartCall("VIDEO")}
+            className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+          >
+            <Video className="h-4 w-4" />
+          </Button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

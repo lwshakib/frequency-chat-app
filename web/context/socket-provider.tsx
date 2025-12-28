@@ -83,6 +83,41 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
+  const emitCallStart = useCallback(
+    (payload: any) => {
+      socket?.emit("call:start", payload);
+    },
+    [socket]
+  );
+
+  const emitCallAccept = useCallback(
+    (payload: any) => {
+      socket?.emit("call:accept", payload);
+    },
+    [socket]
+  );
+
+  const emitCallReject = useCallback(
+    (payload: any) => {
+      socket?.emit("call:reject", payload);
+    },
+    [socket]
+  );
+
+  const emitCallHangup = useCallback(
+    (payload: any) => {
+      socket?.emit("call:hangup", payload);
+    },
+    [socket]
+  );
+
+  const emitCallSignal = useCallback(
+    (payload: any) => {
+      socket?.emit("call:signal", payload);
+    },
+    [socket]
+  );
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -199,6 +234,62 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       }
     );
 
+    _socket.on("call:invite", (payload: any) => {
+      const state = useChatStore.getState();
+      const conv = state.conversations.find(
+        (c) => c.id === payload.conversationId
+      );
+      const callerUser = conv?.users.find((u) => u.id === payload.callerId);
+
+      state.setActiveCall({
+        conversationId: payload.conversationId,
+        type: payload.type,
+        status: "RINGING",
+        isOutgoing: false,
+        participants: payload.participants,
+        callerId: payload.callerId,
+        isGroup: payload.isGroup,
+        callee: callerUser,
+      });
+    });
+
+    _socket.on("call:participant-left", (payload: any) => {
+      window.dispatchEvent(
+        new CustomEvent("call:participant-left", { detail: payload })
+      );
+    });
+
+    _socket.on("call:accepted", (payload: any) => {
+      const state = useChatStore.getState();
+      if (state.activeCall?.conversationId === payload.conversationId) {
+        state.setActiveCall({
+          ...state.activeCall!,
+          status: "CONNECTED",
+        });
+      }
+    });
+
+    _socket.on("call:rejected", (payload: any) => {
+      const state = useChatStore.getState();
+      if (state.activeCall?.conversationId === payload.conversationId) {
+        state.setActiveCall(null);
+        toast.info("Call rejected");
+      }
+    });
+
+    _socket.on("call:ended", (payload: any) => {
+      const state = useChatStore.getState();
+      if (state.activeCall?.conversationId === payload.conversationId) {
+        state.setActiveCall(null);
+        toast.info("Call ended");
+      }
+    });
+
+    _socket.on("call:signal", (payload: any) => {
+      // This will be handled by the CallOverlay component listening to window events or a separate emitter
+      window.dispatchEvent(new CustomEvent("call:signal", { detail: payload }));
+    });
+
     _socket.on(
       "typing:stop",
       ({
@@ -281,6 +372,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         emitTypingStart,
         emitTypingStop,
         emitDeleteConversation,
+        emitCallStart,
+        emitCallAccept,
+        emitCallReject,
+        emitCallHangup,
+        emitCallSignal,
         selfOnline,
         selfLastOnlineAt,
       }}

@@ -40,6 +40,26 @@ export interface Conversation {
   isVirtual?: boolean;
 }
 
+export type CallType = "AUDIO" | "VIDEO";
+export type CallStatus =
+  | "IDLE"
+  | "CALLING"
+  | "RINGING"
+  | "CONNECTED"
+  | "ENDED"
+  | "REJECTED";
+
+export interface CallState {
+  conversationId: string;
+  type: CallType;
+  status: CallStatus;
+  isOutgoing: boolean;
+  participants: string[]; // User IDs
+  callee?: User; // For 1:1 calls
+  callerId: string;
+  isGroup: boolean;
+}
+
 export interface Message {
   id: string;
   content: string | null;

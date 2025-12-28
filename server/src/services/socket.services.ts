@@ -128,6 +128,57 @@ class SocketService {
         }
       });
 
+      // --- Call Events ---
+      socket.on("call:start", (payload: any) => {
+        const { conversationId, type, participants, callerId } = payload;
+        // Notify all participants except the caller
+        const targets = participants.filter(
+          (id: string) => id !== socket.data.user.id
+        );
+        io.to(targets).emit("call:invite", {
+          conversationId,
+          type,
+          participants,
+          callerId,
+        });
+      });
+
+      socket.on("call:accept", (payload: any) => {
+        const { conversationId, callerId, calleeId } = payload;
+        io.to(callerId).emit("call:accepted", { conversationId, calleeId });
+      });
+
+      socket.on("call:reject", (payload: any) => {
+        const { conversationId, callerId, calleeId } = payload;
+        io.to(callerId).emit("call:rejected", { conversationId, calleeId });
+      });
+
+      socket.on("call:hangup", (payload: any) => {
+        const { conversationId, participants, isGroup } = payload;
+        if (isGroup) {
+          // Just notify others that this specific user left
+          const targets = participants.filter(
+            (id: string) => id !== socket.data.user.id
+          );
+          io.to(targets).emit("call:participant-left", {
+            conversationId,
+            userId: socket.data.user.id,
+          });
+        } else {
+          // For 1:1, end the call for everyone
+          io.to(participants).emit("call:ended", { conversationId });
+        }
+      });
+
+      socket.on("call:signal", (payload: any) => {
+        const { conversationId, signal, toUserId, fromUserId } = payload;
+        io.to(toUserId).emit("call:signal", {
+          conversationId,
+          signal,
+          fromUserId,
+        });
+      });
+
       socket.on("disconnect", async () => {
         console.log("A user disconnected", { socketId: socket.id, userId });
         try {

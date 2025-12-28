@@ -8,8 +8,35 @@ export interface SocketContextType {
   emitTypingStart: (conversation: Conversation, fromUserId: string) => void;
   emitTypingStop: (conversation: Conversation, fromUserId: string) => void;
   emitDeleteConversation: (conversation: Conversation) => void;
+  emitCallStart: (payload: {
+    conversationId: string;
+    type: "AUDIO" | "VIDEO";
+    participants: string[];
+    callerId: string;
+  }) => void;
+  emitCallAccept: (payload: {
+    conversationId: string;
+    callerId: string;
+    calleeId: string;
+  }) => void;
+  emitCallReject: (payload: {
+    conversationId: string;
+    callerId: string;
+    calleeId: string;
+  }) => void;
+  emitCallHangup: (payload: {
+    conversationId: string;
+    participants: string[];
+    isGroup: boolean;
+  }) => void;
+  emitCallSignal: (payload: {
+    conversationId: string;
+    signal: any;
+    toUserId: string;
+    fromUserId: string;
+  }) => void;
   selfOnline: boolean;
-  selfLastOnlineAt?: string;
+  selfLastOnlineAt: string | undefined;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(

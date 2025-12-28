@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { authClient } from "@/lib/auth-client";
-import { Conversation } from "@/types";
+import { Conversation, CallState } from "@/types";
 
 type SessionData = ReturnType<typeof authClient.useSession>["data"];
 
@@ -25,6 +25,8 @@ interface ChatStore {
   setMessages: (messages: any[]) => void;
   isLoadingMessages: boolean;
   setIsLoadingMessages: (loading: boolean) => void;
+  activeCall: CallState | null;
+  setActiveCall: (call: CallState | null) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
@@ -80,4 +82,6 @@ export const useChatStore = create<ChatStore>((set) => ({
   setMessages: (messages) => set({ messages }),
   isLoadingMessages: false,
   setIsLoadingMessages: (isLoadingMessages) => set({ isLoadingMessages }),
+  activeCall: null,
+  setActiveCall: (activeCall) => set({ activeCall }),
 }));

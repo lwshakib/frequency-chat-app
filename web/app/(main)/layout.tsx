@@ -2,6 +2,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SocketProvider } from "@/context/socket-provider";
+import CallOverlay from "@/components/chat/call-overlay";
 
 import { authClient } from "@/lib/auth-client";
 import { useChatStore } from "@/context";
@@ -31,6 +32,7 @@ export default function MainLayout({
   }
   return (
     <SocketProvider>
+      <CallOverlay />
       <SidebarProvider
         style={
           {
