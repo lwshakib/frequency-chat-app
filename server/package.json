@@ -10,8 +10,7 @@
     "db:generate": "bun x prisma generate",
     "db:migrate": "bun x prisma generate && bun x prisma migrate dev --name init",
     "db:reset": "bun x prisma migrate reset",
-    "db:studio": "bun x prisma studio",
-    "dev:all": "mprocs"
+    "db:studio": "bun x prisma studio"
   },
   "private": true,
   "devDependencies": {
