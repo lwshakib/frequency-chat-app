@@ -31,6 +31,8 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
   } = useChatStore();
 
   const user = session?.user;
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [isMediaReady, setIsMediaReady] = useState(false);
 
   const sendMessage = useCallback(
     (message: Message, conversationOverride?: Conversation) => {
@@ -415,6 +417,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         emitIceCandidate,
         selfOnline,
         selfLastOnlineAt,
+        localStream,
+        setLocalStream,
+        isMediaReady,
+        setIsMediaReady,
       }}
     >
       {children}

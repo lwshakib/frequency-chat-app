@@ -52,6 +52,10 @@ export interface SocketContextType {
   }) => void;
   selfOnline: boolean;
   selfLastOnlineAt: string | undefined;
+  localStream: MediaStream | null;
+  setLocalStream: (stream: MediaStream | null) => void;
+  isMediaReady: boolean;
+  setIsMediaReady: (ready: boolean) => void;
 }
 
 export const SocketContext = React.createContext<SocketContextType | null>(
