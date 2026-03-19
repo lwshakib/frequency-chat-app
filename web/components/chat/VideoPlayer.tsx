@@ -28,7 +28,7 @@ export function VideoPlayer({
 
   return (
     <div className={cn(
-      "relative aspect-video w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl transition-all hover:scale-[1.02] border border-white/5",
+      "relative aspect-video w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-2xl transition-all border border-white/5",
       className
     )}>
       <video

@@ -171,7 +171,18 @@ export default function CallOverlay() {
 
   if (!activeCall) return null;
 
-  const remoteStream = Array.from(remoteStreams.values())[0];
+  const remoteUserId = Array.from(remoteStreams.keys())[0];
+  const remoteStream = remoteStreams.get(remoteUserId || "");
+
+  const getParticipantName = (id: string): string => {
+    if (!id) return "User";
+    const userInConv = useChatStore.getState().selectedConversation?.users.find(u => u.id === id);
+    if (userInConv?.name) return userInConv.name;
+    if (activeCall.callee?.name && id === activeCall.callee?.id) return activeCall.callee.name;
+    return "User";
+  };
+
+  const remoteUserName = getParticipantName(remoteUserId || "");
   const isAudioCall = activeCall.type === "AUDIO";
   const isConnected = activeCall.status === "CONNECTED";
   const isIncoming = activeCall.status === "RINGING" && !activeCall.isOutgoing;
@@ -187,7 +198,11 @@ export default function CallOverlay() {
         {/* Background Layer */}
         {isConnected && !isAudioCall && remoteStream ? (
            <div className="absolute inset-0">
-              <VideoPlayer stream={remoteStream} className="h-full w-full rounded-none border-none scale-100" />
+            <VideoPlayer 
+              stream={remoteStream || null} 
+              username={remoteUserName || "User"}
+              className="h-full w-full rounded-none border-none scale-100" 
+            />
            </div>
         ) : (
           <div className="absolute inset-0 bg-zinc-900">
