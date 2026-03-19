@@ -475,6 +475,7 @@ export default function Page() {
                 >
                   <DropdownMenuItem className="rounded-lg">
                     <div className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
                       <span className="text-sm">View Details</span>
                     </div>
                   </DropdownMenuItem>
@@ -495,7 +496,7 @@ export default function Page() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-1" />
                   <DropdownMenuItem
-                    className="text-destructive focus:text-destructive focus:bg-destructive/10 rounded-lg"
+                    className="rounded-lg"
                     onClick={() => setIsDeleteDialogOpen(true)}
                   >
                     <div className="flex items-center gap-2">
