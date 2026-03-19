@@ -35,6 +35,21 @@ export interface SocketContextType {
     toUserId: string;
     fromUserId: string;
   }) => void;
+  emitOffer: (payload: {
+    sdp: RTCSessionDescriptionInit;
+    toUserId: string;
+    fromUserId: string;
+  }) => void;
+  emitAnswer: (payload: {
+    sdp: RTCSessionDescriptionInit;
+    toUserId: string;
+    fromUserId: string;
+  }) => void;
+  emitIceCandidate: (payload: {
+    candidate: RTCIceCandidateInit;
+    toUserId: string;
+    fromUserId: string;
+  }) => void;
   selfOnline: boolean;
   selfLastOnlineAt: string | undefined;
 }

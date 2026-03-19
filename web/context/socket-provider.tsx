@@ -118,6 +118,27 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     [socket]
   );
 
+  const emitOffer = useCallback(
+    (payload: any) => {
+      socket?.emit("offer", payload);
+    },
+    [socket]
+  );
+
+  const emitAnswer = useCallback(
+    (payload: any) => {
+      socket?.emit("answer", payload);
+    },
+    [socket]
+  );
+
+  const emitIceCandidate = useCallback(
+    (payload: any) => {
+      socket?.emit("ice-candidate", payload);
+    },
+    [socket]
+  );
+
   useEffect(() => {
     if (!user?.id) return;
 
@@ -290,6 +311,18 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       window.dispatchEvent(new CustomEvent("call:signal", { detail: payload }));
     });
 
+    _socket.on("offer", (payload: any) => {
+      window.dispatchEvent(new CustomEvent("offer", { detail: payload }));
+    });
+
+    _socket.on("answer", (payload: any) => {
+      window.dispatchEvent(new CustomEvent("answer", { detail: payload }));
+    });
+
+    _socket.on("ice-candidate", (payload: any) => {
+      window.dispatchEvent(new CustomEvent("ice-candidate", { detail: payload }));
+    });
+
     _socket.on(
       "typing:stop",
       ({
@@ -377,6 +410,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         emitCallReject,
         emitCallHangup,
         emitCallSignal,
+        emitOffer,
+        emitAnswer,
+        emitIceCandidate,
         selfOnline,
         selfLastOnlineAt,
       }}

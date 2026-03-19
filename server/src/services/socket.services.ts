@@ -171,11 +171,35 @@ class SocketService {
       });
 
       socket.on("call:signal", (payload: any) => {
-        const { conversationId, signal, toUserId, fromUserId } = payload;
+        const { signal, toUserId, fromUserId } = payload;
         io.to(toUserId).emit("call:signal", {
-          conversationId,
           signal,
           fromUserId,
+        });
+      });
+
+      // WebRTC Signaling: Forwarding offers, answers, and ICE candidates
+      socket.on("offer", (payload: any) => {
+        const { sdp, toUserId, fromUserId } = payload;
+        io.to(toUserId).emit("offer", {
+          sdp,
+          senderId: fromUserId,
+        });
+      });
+
+      socket.on("answer", (payload: any) => {
+        const { sdp, toUserId, fromUserId } = payload;
+        io.to(toUserId).emit("answer", {
+          sdp,
+          senderId: fromUserId,
+        });
+      });
+
+      socket.on("ice-candidate", (payload: any) => {
+        const { candidate, toUserId, fromUserId } = payload;
+        io.to(toUserId).emit("ice-candidate", {
+          candidate,
+          senderId: fromUserId,
         });
       });
 
