@@ -1,6 +1,6 @@
-import { config } from "dotenv";
-import nodemailer from "nodemailer";
-import { SendMailEnum } from "../constants";
+import { Resend } from "resend";
+import { SendMailEnum, FROM_EMAIL } from "../constants";
+import { RESEND_API_KEY } from "../env";
 
 // Import email templates
 import {
@@ -8,28 +8,7 @@ import {
   verifyEmailTemplate,
 } from "./templates/index.js";
 
-config();
-
-const isDevelopment = process.env.NODE_ENV === "development";
-
-const transporter = nodemailer.createTransport(
-  isDevelopment
-    ? {
-        host: process.env.MAILHOG_SMTP_HOST || "localhost",
-        port: Number(process.env.MAILHOG_SMTP_PORT) || 1025,
-        secure: false,
-        tls: {
-          rejectUnauthorized: false,
-        },
-      }
-    : {
-        service: "gmail",
-        auth: {
-          user: process.env.GMAIL_USER,
-          pass: process.env.GMAIL_PASS,
-        },
-      }
-);
+const resend = new Resend(RESEND_API_KEY);
 
 export const sendEmail = async (purpose: SendMailEnum, context: any) => {
   try {
@@ -51,24 +30,24 @@ export const sendEmail = async (purpose: SendMailEnum, context: any) => {
       throw new Error("Unsupported email purpose");
     }
 
-    const mailOptions = {
-      from: `Frequency <${process.env.GMAIL_USER || "noreply@frequency.com"}>`,
-      to: context.to,
+    const { data, error } = await resend.emails.send({
+      from: `Frequency <${FROM_EMAIL}>`,
+      to: [context.to],
       subject,
       text,
       html,
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email sent successfully:", info.messageId);
-
-    if (isDevelopment) {
-      console.log("📧 Preview URL:", nodemailer.getTestMessageUrl(info));
+    if (error) {
+      console.error("❌ Error sending email through Resend:", error);
+      throw error;
     }
+
+    console.log("✅ Email sent successfully:", data?.id);
 
     return {
       success: true,
-      messageId: info.messageId,
+      messageId: data?.id,
     };
   } catch (error) {
     console.error("❌ Error sending email:", error);
@@ -76,14 +55,7 @@ export const sendEmail = async (purpose: SendMailEnum, context: any) => {
   }
 };
 
-// Verify transporter configuration on startup
+// Skip verification on startup as Resend doesn't have a direct 'verify' like Nodemailer
 export const verifyEmailConfig = async () => {
-  try {
-    await transporter.verify();
-    console.log("✅ Email server is ready to send messages");
-    return true;
-  } catch (error) {
-    console.error("❌ Email server configuration error:", error);
-    return false;
-  }
+    return !!RESEND_API_KEY;
 };
