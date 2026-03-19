@@ -266,9 +266,9 @@ export default function CallOverlay() {
                     });
                     setActiveCall({ ...activeCall, status: "CONNECTED" });
                   }}
-                  className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                  className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-emerald-500 text-white shadow-xl shadow-emerald-500/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                 >
-                  <Phone size={32} />
+                  <Phone size={28} />
                 </button>
                 <button
                   onClick={() => {
@@ -279,9 +279,9 @@ export default function CallOverlay() {
                     });
                     setActiveCall(null);
                   }}
-                  className="h-16 w-16 md:h-20 md:w-20 rounded-full bg-red-500 text-white shadow-xl shadow-red-500/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                  className="h-14 w-14 md:h-16 md:w-16 rounded-full bg-red-500 text-white shadow-xl shadow-red-500/20 flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                 >
-                  <PhoneOff size={32} />
+                  <PhoneOff size={28} />
                 </button>
               </>
             ) : (
@@ -294,7 +294,7 @@ export default function CallOverlay() {
                         setIsMuted(!isMuted);
                       }}
                       className={cn(
-                        "h-14 w-14 rounded-2xl flex items-center justify-center transition-all",
+                        "h-12 w-12 rounded-xl flex items-center justify-center transition-all",
                         isMuted ? "bg-red-500/20 text-red-500" : "bg-white/5 text-white hover:bg-white/10"
                       )}
                     >
@@ -307,20 +307,20 @@ export default function CallOverlay() {
                           setIsVideoOff(!isVideoOff);
                         }}
                         className={cn(
-                          "h-14 w-14 rounded-2xl flex items-center justify-center transition-all",
+                          "h-12 w-12 rounded-xl flex items-center justify-center transition-all",
                           isVideoOff ? "bg-red-500/20 text-red-500" : "bg-white/5 text-white hover:bg-white/10"
                         )}
                       >
-                        {isVideoOff ? <VideoOff size={24} /> : <Video size={24} />}
+                        {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
                       </button>
                     )}
                   </>
                 )}
                 <button
                   onClick={handleHangup}
-                  className="h-14 w-14 md:h-16 md:w-16 rounded-2xl bg-red-500 text-white flex items-center justify-center transition-all hover:bg-red-600 hover:scale-110 active:scale-95 shadow-lg shadow-red-500/20"
+                  className="h-12 w-12 md:h-14 md:w-14 rounded-xl bg-red-500 text-white flex items-center justify-center transition-all hover:bg-red-600 hover:scale-110 active:scale-95 shadow-lg shadow-red-500/20"
                 >
-                  <PhoneOff size={28} />
+                  <PhoneOff size={24} />
                 </button>
               </div>
             )}
