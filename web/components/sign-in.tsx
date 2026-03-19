@@ -30,7 +30,7 @@ export default function SignIn() {
         email,
         password,
         callbackURL:
-          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000/",
+          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
       },
       {
         onRequest: () => {
@@ -52,7 +52,7 @@ export default function SignIn() {
   const handleGoogleSignIn = async () => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: process.env.NEXT_PUBLIC_BASE_URL,
+      callbackURL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
     });
   };
 

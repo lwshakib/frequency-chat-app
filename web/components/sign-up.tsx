@@ -50,7 +50,7 @@ export default function SignUp() {
   const handleGoogleSignIn = async () => {
     await authClient.signIn.social({
       provider: "google",
-      callbackURL: process.env.NEXT_PUBLIC_BASE_URL,
+      callbackURL: process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000",
     });
   };
 
