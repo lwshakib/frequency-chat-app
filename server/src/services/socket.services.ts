@@ -205,6 +205,11 @@ class SocketService {
 
       socket.on("disconnect", async () => {
         console.log("A user disconnected", { socketId: socket.id, userId });
+        
+        // Notify any possible call participants that this user is gone
+        // This is caught by the CallOverlay to close connections
+        io.emit("call:participant-left", { userId });
+
         try {
           const ts = new Date().toISOString();
           await produceUserPresence({

@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useChatStore } from "@/context";
 import { useSocket } from "@/context/socket-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Phone,
   PhoneOff,
@@ -35,9 +35,11 @@ export default function CallOverlay() {
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+  const [isMediaReady, setIsMediaReady] = useState(false);
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
+  const pendingOffers = useRef<Map<string, any>>(new Map());
 
   const cleanup = useCallback(() => {
     localStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -46,6 +48,8 @@ export default function CallOverlay() {
     setLocalStream(null);
     localStreamRef.current = null;
     setRemoteStreams(new Map());
+    setIsMediaReady(false);
+    pendingOffers.current.clear();
   }, []);
 
   const handleHangup = useCallback(() => {
@@ -75,6 +79,7 @@ export default function CallOverlay() {
         iceServers: [
           { urls: "stun:stun.l.google.com:19302" },
           { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" },
         ],
       });
 
@@ -96,6 +101,13 @@ export default function CallOverlay() {
         });
       };
 
+      pc.onconnectionstatechange = () => {
+        if (pc.connectionState === "failed") {
+          console.warn("Peer connection failed for", targetUserId);
+          // Optional: try to restart ICE or cleanup
+        }
+      };
+
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, localStreamRef.current!);
@@ -108,24 +120,37 @@ export default function CallOverlay() {
     [activeCall, currentUser?.id, emitIceCandidate]
   );
 
-  useEffect(() => {
-    if (!activeCall || activeCall.status !== "CONNECTED") return;
-
-    const onOffer = async (e: any) => {
-      const { sdp, senderId } = e.detail;
-      if (senderId === currentUser?.id) return;
-
-      const pc = createPeerConnection(senderId);
+  const processOffer = useCallback(async (senderId: string, sdp: any) => {
+    const pc = createPeerConnection(senderId);
+    try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       emitAnswer({ sdp: answer, toUserId: senderId, fromUserId: currentUser!.id });
+    } catch (err) {
+      console.error("Error processing offer:", err);
+    }
+  }, [createPeerConnection, currentUser?.id, emitAnswer]);
+
+  // Buffer offers until media is ready
+  useEffect(() => {
+    if (!activeCall || activeCall.status !== "CONNECTED") return;
+
+    const onOffer = (e: any) => {
+      const { sdp, senderId } = e.detail;
+      if (senderId === currentUser?.id) return;
+
+      if (!isMediaReady) {
+        pendingOffers.current.set(senderId, sdp);
+      } else {
+        processOffer(senderId, sdp);
+      }
     };
 
     const onAnswer = async (e: any) => {
       const { sdp, senderId } = e.detail;
       const pc = peerConnections.current.get(senderId);
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp)).catch(console.error);
     };
 
     const onIceCandidate = async (e: any) => {
@@ -134,17 +159,39 @@ export default function CallOverlay() {
       if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
     };
 
+    const handleParticipantLeft = (e: any) => {
+      const { userId } = e.detail;
+      setRemoteStreams((prev) => {
+        const next = new Map(prev);
+        next.delete(userId);
+        return next;
+      });
+      const pc = peerConnections.current.get(userId);
+      if (pc) {
+        pc.close();
+        peerConnections.current.delete(userId);
+      }
+      if (!activeCall.isGroup && userId === activeCall.callee?.id) {
+        toast.info("Partner disconnected");
+        setActiveCall(null);
+        cleanup();
+      }
+    };
+
     window.addEventListener("offer", onOffer);
     window.addEventListener("answer", onAnswer);
     window.addEventListener("ice-candidate", onIceCandidate);
+    window.addEventListener("call:participant-left", handleParticipantLeft);
 
     return () => {
       window.removeEventListener("offer", onOffer);
       window.removeEventListener("answer", onAnswer);
       window.removeEventListener("ice-candidate", onIceCandidate);
+      window.removeEventListener("call:participant-left", handleParticipantLeft);
     };
-  }, [activeCall, createPeerConnection, currentUser?.id, emitAnswer]);
+  }, [activeCall, isMediaReady, processOffer, currentUser?.id, cleanup, setActiveCall]);
 
+  // Handle media and pending connectivity
   useEffect(() => {
     if (activeCall?.status === "CONNECTED" && !localStream) {
       navigator.mediaDevices
@@ -152,6 +199,8 @@ export default function CallOverlay() {
         .then((stream) => {
           setLocalStream(stream);
           localStreamRef.current = stream;
+          setIsMediaReady(true);
+
           if (activeCall.isOutgoing) {
             const targets = activeCall.participants.filter((id) => id !== currentUser?.id);
             targets.forEach(async (targetId) => {
@@ -161,13 +210,20 @@ export default function CallOverlay() {
               emitOffer({ sdp: offer, toUserId: targetId, fromUserId: currentUser!.id });
             });
           }
+
+          // Process any offers that arrived while we were getting media access
+          pendingOffers.current.forEach((sdp, senderId) => {
+            processOffer(senderId, sdp);
+          });
+          pendingOffers.current.clear();
         })
         .catch(err => {
           console.error("Media error:", err);
+          toast.error("Could not access camera/microphone. Closing call.");
           handleHangup();
         });
     }
-  }, [activeCall, createPeerConnection, currentUser?.id, emitOffer, localStream, handleHangup]);
+  }, [activeCall, createPeerConnection, currentUser?.id, emitOffer, localStream, handleHangup, processOffer]);
 
   if (!activeCall) return null;
 
@@ -206,12 +262,11 @@ export default function CallOverlay() {
            </div>
         ) : (
           <div className="absolute inset-0 bg-zinc-900">
-            {/* Subtle background pattern or blur can go here */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-zinc-900 to-black/40" />
           </div>
         )}
 
-        {/* Floating Local Preview (Video Call only) */}
+        {/* Floating Local Preview */}
         {!isAudioCall && localStream && isConnected && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.8 }}
@@ -222,9 +277,9 @@ export default function CallOverlay() {
           </motion.div>
         )}
 
-        {/* Center Content (Avatar for Audio or Video-Ring) */}
+        {/* Center Content */}
         <AnimatePresence>
-          {(isAudioCall || !isConnected) && (
+          {(isAudioCall || !isConnected || (isConnected && !isAudioCall && !remoteStream)) && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -243,7 +298,7 @@ export default function CallOverlay() {
               <div className="text-center space-y-2">
                 <h1 className="text-3xl font-bold text-white tracking-tight">{activeCall.callee?.name}</h1>
                 <p className="text-indigo-400 font-medium tracking-wide">
-                  {isIncoming ? "Incoming Call" : isConnected ? "On Call" : "Calling..."}
+                  {isIncoming ? "Incoming Call" : isConnected ? (remoteStream ? "On Call" : "Connecting video...") : "Calling..."}
                 </p>
               </div>
             </motion.div>
@@ -252,8 +307,6 @@ export default function CallOverlay() {
 
         {/* Floating Bottom Controls */}
         <div className="absolute bottom-12 left-0 right-0 z-50 flex flex-col items-center gap-8 px-6">
-          
-          {/* Main Action Buttons */}
           <div className="flex items-center gap-6">
             {isIncoming ? (
               <>
