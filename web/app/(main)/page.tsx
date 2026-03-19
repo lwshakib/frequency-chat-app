@@ -23,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +98,7 @@ export default function Page() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const { toggleSidebar } = useSidebar();
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -316,10 +318,26 @@ export default function Page() {
 
   if (!selectedConversation) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center p-4 text-muted-foreground bg-background h-full">
-        <div className="flex flex-col items-center gap-2">
-          <Users className="h-12 w-12 opacity-20" />
-          <p>Select a conversation to start chatting</p>
+      <div className="flex flex-1 flex-col items-center justify-center p-4 text-muted-foreground bg-background h-full relative">
+        <div className="absolute top-4 left-4 md:hidden">
+          <SidebarTrigger className="h-10 w-10 text-primary" />
+        </div>
+        <div className="flex flex-col items-center gap-4 text-center max-w-[280px]">
+          <div className="relative">
+             <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse scale-150 blur-xl" />
+             <Users className="h-16 w-16 opacity-20 relative z-10" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-foreground font-semibold">Ready to chat?</p>
+            <p className="text-sm">Select a conversation from the sidebar to start messaging.</p>
+          </div>
+          <Button 
+            onClick={toggleSidebar}
+            className="mt-4 flex md:hidden items-center gap-2 px-8 h-12 rounded-full bg-primary text-primary-foreground font-bold shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all group"
+          >
+             <MessageSquare className="h-4 w-4 transition-transform group-hover:rotate-12" />
+             <span>Browse Chats</span>
+          </Button>
         </div>
       </div>
     );
