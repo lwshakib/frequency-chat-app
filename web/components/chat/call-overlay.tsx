@@ -36,6 +36,7 @@ export default function CallOverlay() {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isMediaReady, setIsMediaReady] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -50,7 +51,20 @@ export default function CallOverlay() {
     setRemoteStreams(new Map());
     setIsMediaReady(false);
     pendingOffers.current.clear();
+    setCallDuration(0);
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (activeCall?.status === "CONNECTED" && remoteStreams.size > 0) {
+      interval = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeCall?.status, remoteStreams.size]);
 
   const handleHangup = useCallback(() => {
     if (activeCall) {
@@ -251,6 +265,20 @@ export default function CallOverlay() {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black overflow-hidden"
       >
+        {/* Call Timer Overlay */}
+        {isConnected && remoteStream && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute top-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/10"
+          >
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+            <span className="text-sm font-mono font-medium text-white/90 tracking-widest">
+              {Math.floor(callDuration / 60).toString().padStart(2, "0")}:
+              {(callDuration % 60).toString().padStart(2, "0")}
+            </span>
+          </motion.div>
+        )}
         {/* Background Layer */}
         {isConnected && !isAudioCall && remoteStream ? (
            <div className="absolute inset-0">
