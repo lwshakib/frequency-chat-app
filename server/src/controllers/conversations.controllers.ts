@@ -82,6 +82,7 @@ export const getConversations = asyncHandler(
           select: {
             id: true,
             name: true,
+            email: true,
             image: true,
             isOnline: true,
             lastOnlineAt: true,
@@ -160,7 +161,18 @@ export const getConversationById = asyncHandler(
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId, users: { some: { id: currentUserId } } },
       include: {
-        users: true,
+        users: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            image: true,
+            isOnline: true,
+            lastOnlineAt: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
         lastMessage: true,
         admins: {
           include: {
@@ -254,6 +266,7 @@ export const createConversation = asyncHandler(
             select: {
               id: true,
               name: true,
+              email: true,
               image: true,
               isOnline: true,
               lastOnlineAt: true,
@@ -306,6 +319,7 @@ export const createConversation = asyncHandler(
             select: {
               id: true,
               name: true,
+              email: true,
               image: true,
               isOnline: true,
               lastOnlineAt: true,
@@ -361,6 +375,7 @@ export const createConversation = asyncHandler(
             select: {
               id: true,
               name: true,
+              email: true,
               image: true,
               isOnline: true,
               lastOnlineAt: true,
