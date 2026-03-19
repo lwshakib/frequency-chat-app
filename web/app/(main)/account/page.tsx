@@ -171,22 +171,12 @@ export default function AccountPage() {
            <p className="text-muted-foreground mt-1">Manage your profile, security, and connected accounts.</p>
         </div>
 
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-[400px] mb-8">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
-            <TabsTrigger value="connections">Links</TabsTrigger>
-            <TabsTrigger value="danger">Danger</TabsTrigger>
-          </TabsList>
-
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="space-y-6">
-            <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5">
-              <CardHeader>
-                <CardTitle>Public Profile</CardTitle>
-                <CardDescription>Update your personal information and how others see you.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
+        <div className="space-y-12 pb-20">
+          {/* Profile Section */}
+          <section id="profile" className="space-y-4">
+            <h2 className="text-sm font-bold tracking-wide text-muted-foreground/60 px-1">Profile Information</h2>
+            <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5 p-2">
+              <CardContent className="space-y-6 pt-6">
                 <div className="flex items-center gap-6">
                   <div className="relative">
                     <Avatar className="h-24 w-24 border-2 border-primary/20 p-0.5">
@@ -221,93 +211,92 @@ export default function AccountPage() {
                 </form>
               </CardContent>
             </Card>
-          </TabsContent>
+          </section>
 
-          {/* Security Tab */}
-          <TabsContent value="security" className="space-y-6">
-             {/* Change Password */}
-             <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5">
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>Ensure your account remains secure.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleChangePassword} className="space-y-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="current">Current Password</Label>
-                    <Input id="current" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="rounded-xl h-11" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="new">New Password</Label>
-                    <Input id="new" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="rounded-xl h-11" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="confirm">Confirm New Password</Label>
-                    <Input id="confirm" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="rounded-xl h-11" />
-                  </div>
-                  <Button type="submit" disabled={isChangingPassword} className="rounded-xl h-11 px-8 font-semibold">
-                    Update Password
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            {/* Active Sessions */}
-            <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5">
-              <CardHeader>
-                <CardTitle>Active Sessions</CardTitle>
-                <CardDescription>Devices that are currently logged into your account.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {sessions.map((sess) => {
-                  const isCurrent = sess.id === session?.session?.id;
-                  const ua = sess.userAgent || "Unknown Device";
-                  const isMobile = ua.toLowerCase().includes("mobile");
-                  
-                  return (
-                    <div key={sess.id} className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-background rounded-lg border">
-                          {isMobile ? <Smartphone className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
-                        </div>
-                        <div className="min-w-0">
-                           <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold truncate max-w-[200px]">{ua}</p>
-                              {isCurrent && <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded-full font-bold">CURRENT</span>}
-                           </div>
-                           <p className="text-xs text-muted-foreground">{sess.ipAddress || "No IP logged"}</p>
-                        </div>
-                      </div>
-                      {!isCurrent && (
-                        <Button variant="ghost" size="sm" onClick={() => handleRevokeSession(sess.token)} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg">
-                           Revoke
-                        </Button>
-                      )}
+          {/* Security Section */}
+          <section id="security" className="space-y-4">
+            <h2 className="text-sm font-bold tracking-wide text-muted-foreground/60 px-1">Security & Access</h2>
+            <div className="grid gap-6">
+               {/* Change Password */}
+               <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5">
+                <CardHeader>
+                  <CardTitle className="text-lg">Change Password</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="current">Current Password</Label>
+                      <Input id="current" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="rounded-xl h-11" />
                     </div>
-                  );
-                })}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    <div className="grid gap-2">
+                      <Label htmlFor="new">New Password</Label>
+                      <Input id="new" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="rounded-xl h-11" />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="confirm">Confirm New Password</Label>
+                      <Input id="confirm" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="rounded-xl h-11" />
+                    </div>
+                    <Button type="submit" disabled={isChangingPassword} className="rounded-xl h-11 px-8 font-semibold">
+                      Update Password
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
 
-          {/* Connections Tab */}
-          <TabsContent value="connections" className="space-y-6">
+              {/* Active Sessions */}
+              <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5">
+                <CardHeader>
+                  <CardTitle className="text-lg">Logged Devices</CardTitle>
+                  <CardDescription>Manage your active sessions across different platforms.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {sessions.map((sess) => {
+                    const isCurrent = sess.id === session?.session?.id;
+                    const ua = sess.userAgent || "Unknown Device";
+                    const isMobile = ua.toLowerCase().includes("mobile");
+                    
+                    return (
+                      <div key={sess.id} className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
+                        <div className="flex items-center gap-4">
+                          <div className="p-2 bg-background rounded-lg border">
+                            {isMobile ? <Smartphone className="h-5 w-5" /> : <Monitor className="h-5 w-5" />}
+                          </div>
+                          <div className="min-w-0">
+                             <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold truncate max-w-[200px]">{ua}</p>
+                                {isCurrent && <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 rounded-full font-bold">Active</span>}
+                             </div>
+                             <p className="text-xs text-muted-foreground">{sess.ipAddress || "No IP logged"}</p>
+                          </div>
+                        </div>
+                        {!isCurrent && (
+                          <Button variant="ghost" size="sm" onClick={() => handleRevokeSession(sess.token)} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg">
+                             Revoke
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Connections Section */}
+          <section id="connections" className="space-y-4">
+            <h2 className="text-sm font-bold tracking-wide text-muted-foreground/60 px-1">Linked Hubs</h2>
             <Card className="rounded-2xl border-white/5 shadow-xl bg-muted/5">
-              <CardHeader>
-                <CardTitle>Connected Accounts</CardTitle>
-                <CardDescription>Social platforms linked to your account.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {accounts.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No social accounts connected.</p>}
+              <CardContent className="space-y-4 pt-6">
+                {accounts.length === 0 && <p className="text-sm text-muted-foreground py-4 text-center">No third-party accounts connected yet.</p>}
                 {accounts.map((acc) => (
                   <div key={acc.id} className="flex items-center justify-between p-4 rounded-xl border bg-muted/10">
                     <div className="flex items-center gap-4">
-                      <div className="p-2 bg-background rounded-lg border uppercase font-bold text-xs">
-                        {acc.providerId[0]}
+                      <div className="p-2 bg-background rounded-lg border font-bold text-xs">
+                        {acc.providerId[0].toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold capitalize">{acc.providerId}</p>
-                        <p className="text-xs text-muted-foreground">Linked Account</p>
+                        <p className="text-xs text-muted-foreground">Social Authentication</p>
                       </div>
                     </div>
                     <Globe className="h-4 w-4 text-muted-foreground" />
@@ -315,19 +304,19 @@ export default function AccountPage() {
                 ))}
               </CardContent>
             </Card>
-          </TabsContent>
+          </section>
 
-          {/* Danger Tab */}
-          <TabsContent value="danger" className="space-y-6">
+          {/* Danger Zone */}
+          <section id="danger" className="space-y-4">
+            <h2 className="text-sm font-bold tracking-wide text-destructive/60 px-1">Danger Zone</h2>
             <Card className="rounded-2xl border-destructive/20 border-2 shadow-xl bg-destructive/[0.02]">
               <CardHeader>
-                <CardTitle className="text-destructive">Delete Account</CardTitle>
-                <CardDescription>Once you delete your account, there is no going back. Please be certain.</CardDescription>
+                <CardTitle className="text-destructive text-lg">Remove Account</CardTitle>
+                <CardDescription>Permanently erase your identity and data from Frequency.</CardDescription>
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  All your messages, group memberships, and personal data will be wiped from our servers. 
-                  ICE/STUN data and temporary cache will be cleared immediately.
+                  Deleting your account is irreversible. Your messages, groups, and media will be wiped.
                 </p>
               </CardContent>
               <CardFooter className="pt-2">
@@ -335,32 +324,32 @@ export default function AccountPage() {
                   <AlertDialogTrigger asChild>
                     <Button variant="destructive" className="rounded-xl h-11 px-8 font-bold">
                       <Trash2 className="mr-2 h-4 w-4" />
-                      Delete My Account
+                      Deactivate Identity
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent className="rounded-2xl border-destructive/20">
                     <AlertDialogHeader>
-                      <AlertDialogTitle className="text-destructive">Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogTitle className="text-destructive">Final decision?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your account
-                        and remove all associated data from our servers including your message history and group memberships.
+                        This will permanently delete your account and remove all data from our servers. 
+                        This includes your message history and all group memberships.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter className="gap-2">
-                      <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                      <AlertDialogCancel className="rounded-xl font-semibold">Keep my account</AlertDialogCancel>
                       <AlertDialogAction 
                         onClick={handleDeleteAccount}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold"
                       >
-                        Delete Permanently
+                        Delete Everything
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </CardFooter>
             </Card>
-          </TabsContent>
-        </Tabs>
+          </section>
+        </div>
       </div>
     </div>
   );

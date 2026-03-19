@@ -1,13 +1,13 @@
 "use client";
 
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react";
 
+import { Phone } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -97,9 +97,9 @@ export function NavUser() {
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
+              <DropdownMenuItem onClick={() => router.push("/calls")}>
+                <Phone className="size-4" />
+                Call History
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconNotification />
