@@ -200,6 +200,12 @@ export async function searchMessages(
   return response.data.messages;
 }
 
+// ============ CALLS API ============
+
+export const getCallLogs = async (): Promise<any[]> => {
+  return fetchApi<any[]>("/calls");
+};
+
 // ============ CLOUDINARY API ============
 
 export interface CloudinarySignatureResponse {
@@ -249,6 +255,32 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   const data = await response.json();
   return data.secure_url;
 }
-export const getCallLogs = async (): Promise<any[]> => {
-  return fetchApi<any[]>("/calls");
-};
+
+// ============ NOTIFICATIONS API ============
+
+export interface ApiNotification {
+  id: string;
+  type: string;
+  content: string;
+  isRead: boolean;
+  userId: string;
+  conversationId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getNotifications(userId: string): Promise<ApiNotification[]> {
+  return fetchApi<ApiNotification[]>(`/notifications/${userId}`);
+}
+
+export async function markNotificationAsRead(notificationId: string): Promise<ApiNotification> {
+  return fetchApi<ApiNotification>(`/notifications/${notificationId}/read`, {
+    method: "PUT",
+  });
+}
+
+export async function markAllNotificationsAsRead(userId: string): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>(`/notifications/user/${userId}/read-all`, {
+    method: "PUT",
+  });
+}

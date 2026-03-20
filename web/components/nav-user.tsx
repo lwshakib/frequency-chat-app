@@ -3,7 +3,6 @@
 import {
   IconDotsVertical,
   IconLogout,
-  IconNotification,
   IconUserCircle,
 } from "@tabler/icons-react";
 
@@ -29,11 +28,15 @@ import { useChatStore } from "@/context";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
+import { useTheme } from "next-themes";
+import { IconSun, IconMoon } from "@tabler/icons-react";
+
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { session } = useChatStore();
   const user = session?.user;
   const router = useRouter();
+  const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     await authClient.signOut({
@@ -59,7 +62,7 @@ export function NavUser() {
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.image ?? ""} alt={user.name} />
                 <AvatarFallback className="rounded-lg">
-                  {user.name[0]}
+                  {user.name?.[0] || "?"}
                 </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -81,7 +84,9 @@ export function NavUser() {
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.image ?? ""} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {user.name?.[0] || "?"}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -101,9 +106,9 @@ export function NavUser() {
                 <Phone className="size-4" />
                 Call History
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconNotification />
-                Notifications
+              <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+                {theme === "dark" ? <IconSun /> : <IconMoon />}
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

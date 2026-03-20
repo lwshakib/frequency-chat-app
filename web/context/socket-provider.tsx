@@ -346,6 +346,11 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
       window.dispatchEvent(new CustomEvent("ice-candidate", { detail: payload }));
     });
 
+    _socket.on("notification:new", (notification: any) => {
+      const state = useChatStore.getState();
+      state.addNotification(notification);
+    });
+
     _socket.on(
       "typing:stop",
       ({

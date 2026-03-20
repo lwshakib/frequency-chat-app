@@ -38,6 +38,8 @@ import {
 
 import { toUser, toConversation } from "@/lib/chat-helpers";
 
+import NotificationCenter from "./notification-center";
+
 // --- Header Component ---
 export function SidebarHeaderBar() {
   return (
@@ -56,7 +58,7 @@ export function SidebarHeaderBar() {
           </SidebarMenuItem>
         </SidebarMenu>
         <div className="flex items-center gap-2">
-          <ModeToggle />
+          <NotificationCenter />
         </div>
       </div>
     </SidebarHeader>

@@ -336,12 +336,35 @@ class SocketService {
         const users = data2.conversation?.users;
 
         if (users.length > 0) {
-          users.forEach((user: any) => {
+          users.forEach(async (user: any) => {
+            if (user.id === data2.message.senderId) return;
+
             console.log("Sending message to user : ", user.id);
             io.to(user.id).emit("message", {
               message: data2.message,
               conversation: data2.conversation,
             });
+
+            // Check if user is offline to create a Notification record
+            const room = io.sockets.adapter.rooms.get(user.id);
+            const isOffline = !room || room.size === 0;
+
+            if (isOffline) {
+              try {
+                const notification = await prisma.notification.create({
+                  data: {
+                    type: "MESSAGE",
+                    content: `New message in ${data2.conversation.name || "a conversation"}`,
+                    userId: user.id,
+                    conversationId: data2.conversation.id,
+                  },
+                });
+                // Optional: emit to user room in case they just connected
+                io.to(user.id).emit("notification:new", notification);
+              } catch (err) {
+                console.error("Failed to create offline notification:", err);
+              }
+            }
           });
         }
         await produceMessage(JSON.stringify({ message: data2.message }));

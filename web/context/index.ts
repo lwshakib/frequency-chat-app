@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { authClient } from "@/lib/auth-client";
-import { Conversation, CallState } from "@/types";
+import { Conversation, CallState, User } from "@/types";
+import { ApiNotification } from "@/lib/api";
 
 type SessionData = ReturnType<typeof authClient.useSession>["data"];
 
@@ -27,9 +28,25 @@ interface ChatStore {
   setIsLoadingMessages: (loading: boolean) => void;
   activeCall: CallState | null;
   setActiveCall: (call: CallState | null) => void;
+  notifications: ApiNotification[];
+  setNotifications: (notifications: ApiNotification[]) => void;
+  addNotification: (notification: ApiNotification) => void;
+  markNotificationRead: (notificationId: string) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
+  notifications: [],
+  setNotifications: (notifications) => set({ notifications }),
+  addNotification: (notification) =>
+    set((state) => ({
+      notifications: [notification, ...state.notifications],
+    })),
+  markNotificationRead: (notificationId) =>
+    set((state) => ({
+      notifications: state.notifications.map((n) =>
+        n.id === notificationId ? { ...n, isRead: true } : n
+      ),
+    })),
   session: null,
   setSession: (session) => set({ session }),
   conversations: [],
