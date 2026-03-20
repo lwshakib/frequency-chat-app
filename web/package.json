@@ -9,7 +9,7 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "jest",
+    "test": "npx jest",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test"
   },

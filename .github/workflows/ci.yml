@@ -28,7 +28,7 @@ jobs:
 
       - name: Run Server Tests
         working-directory: ./server
-        run: bun test
+        run: bun run test
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
@@ -52,7 +52,7 @@ jobs:
 
       - name: Run Web Unit Tests
         working-directory: ./web
-        run: bun test
+        run: bun run test
 
   web-e2e-tests:
     runs-on: ubuntu-latest
