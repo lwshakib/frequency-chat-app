@@ -275,13 +275,12 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         callee: callerUser,
       });
 
-        // Notify caller that we are ringing
-        _socket.emit("call:ringing", {
-          conversationId: payload.conversationId,
-          callerId: payload.callerId,
-        });
-      }
-    );
+      // Notify caller that we are ringing
+      _socket.emit("call:ringing", {
+        conversationId: payload.conversationId,
+        callerId: payload.callerId,
+      });
+    });
 
     _socket.on("call:ringing", (payload: any) => {
       const state = useChatStore.getState();
@@ -343,7 +342,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     _socket.on("ice-candidate", (payload: any) => {
-      window.dispatchEvent(new CustomEvent("ice-candidate", { detail: payload }));
+      window.dispatchEvent(
+        new CustomEvent("ice-candidate", { detail: payload })
+      );
     });
 
     _socket.on("notification:new", (notification: any) => {

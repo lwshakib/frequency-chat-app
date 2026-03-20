@@ -106,7 +106,9 @@ export function NavUser() {
                 <Phone className="size-4" />
                 Call History
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
+              <DropdownMenuItem
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
                 {theme === "dark" ? <IconSun /> : <IconMoon />}
                 {theme === "dark" ? "Light Mode" : "Dark Mode"}
               </DropdownMenuItem>

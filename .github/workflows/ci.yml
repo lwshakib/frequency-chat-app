@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  server-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        working-directory: ./server
+        run: bun install
+
+      - name: Generate Prisma Client
+        working-directory: ./server
+        run: bun run db:generate
+
+      - name: Run Server Tests
+        working-directory: ./server
+        run: bun test
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+
+  web-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        working-directory: ./web
+        run: bun install
+
+      - name: Run Web Unit Tests
+        working-directory: ./web
+        run: bun test
+
+  web-e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        working-directory: ./web
+        run: bun install
+
+      - name: Install Playwright Browsers
+        working-directory: ./web
+        run: bun x playwright install --with-deps
+
+      - name: Run E2E Tests
+        working-directory: ./web
+        run: bun run test:e2e
+        env:
+          NEXT_PUBLIC_BASE_URL: 'http://localhost:3000'
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 30
+
+  formatting-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Check Server Formatting
+        working-directory: ./server
+        run: |
+          bun install
+          bun run format:check
+
+      - name: Check Web Formatting
+        working-directory: ./web
+        run: |
+          bun install
+          bun run format:check

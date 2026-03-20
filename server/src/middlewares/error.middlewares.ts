@@ -1,4 +1,9 @@
-import type { Request, Response, NextFunction, ErrorRequestHandler } from "express";
+import type {
+  Request,
+  Response,
+  NextFunction,
+  ErrorRequestHandler,
+} from "express";
 import logger from "../logger/winston.logger";
 import { ApiError } from "../utils/ApiError";
 import { asyncHandler } from "../utils/asyncHandler";
@@ -45,9 +50,7 @@ const errorHandler: ErrorRequestHandler = (
   const response: Record<string, unknown> = {
     ...error,
     message: error.message,
-    ...(process.env.NODE_ENV === "development"
-      ? { stack: error.stack }
-      : {}),
+    ...(process.env.NODE_ENV === "development" ? { stack: error.stack } : {}),
   };
 
   logger.error(`${error.message}`);

@@ -269,18 +269,27 @@ export interface ApiNotification {
   updatedAt: string;
 }
 
-export async function getNotifications(userId: string): Promise<ApiNotification[]> {
+export async function getNotifications(
+  userId: string
+): Promise<ApiNotification[]> {
   return fetchApi<ApiNotification[]>(`/notifications/${userId}`);
 }
 
-export async function markNotificationAsRead(notificationId: string): Promise<ApiNotification> {
+export async function markNotificationAsRead(
+  notificationId: string
+): Promise<ApiNotification> {
   return fetchApi<ApiNotification>(`/notifications/${notificationId}/read`, {
     method: "PUT",
   });
 }
 
-export async function markAllNotificationsAsRead(userId: string): Promise<{ message: string }> {
-  return fetchApi<{ message: string }>(`/notifications/user/${userId}/read-all`, {
-    method: "PUT",
-  });
+export async function markAllNotificationsAsRead(
+  userId: string
+): Promise<{ message: string }> {
+  return fetchApi<{ message: string }>(
+    `/notifications/user/${userId}/read-all`,
+    {
+      method: "PUT",
+    }
+  );
 }

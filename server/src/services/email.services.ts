@@ -57,5 +57,5 @@ export const sendEmail = async (purpose: SendMailEnum, context: any) => {
 
 // Skip verification on startup as Resend doesn't have a direct 'verify' like Nodemailer
 export const verifyEmailConfig = async () => {
-    return !!RESEND_API_KEY;
+  return !!RESEND_API_KEY;
 };

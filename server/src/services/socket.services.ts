@@ -197,7 +197,10 @@ class SocketService {
 
       socket.on("call:ringing", (payload: any) => {
         const { conversationId, callerId } = payload;
-        io.to(callerId).emit("call:ringing", { conversationId, calleeId: socket.data.user.id });
+        io.to(callerId).emit("call:ringing", {
+          conversationId,
+          calleeId: socket.data.user.id,
+        });
       });
 
       socket.on("call:accept", async (payload: any) => {
@@ -261,7 +264,7 @@ class SocketService {
             userId: socket.data.user.id,
           });
 
-          // For group calls, we might want to check if everyone left, 
+          // For group calls, we might want to check if everyone left,
           // but for simplicity, let's just end it if it's the caller or just 1 person left
           // In this basic version, we wrap up the call record when it's ended for the "conversation"
           // In group calls, its harder to define "the" duration if it continues differently
@@ -331,7 +334,7 @@ class SocketService {
 
       socket.on("disconnect", async () => {
         console.log("A user disconnected", { socketId: socket.id, userId });
-        
+
         // Notify any possible call participants that this user is gone
         // This is caught by the CallOverlay to close connections
         io.emit("call:participant-left", { userId });

@@ -36,11 +36,15 @@ export default function CallOverlay() {
   } = useSocket();
   const currentUser = session?.user;
 
-  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(
+    new Map()
+  );
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [remoteVideoStatuses, setRemoteVideoStatuses] = useState<Map<string, boolean>>(new Map());
+  const [remoteVideoStatuses, setRemoteVideoStatuses] = useState<
+    Map<string, boolean>
+  >(new Map());
   const [mediaError, setMediaError] = useState<string | null>(null);
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -140,17 +144,24 @@ export default function CallOverlay() {
     [activeCall, currentUser?.id, emitIceCandidate]
   );
 
-  const processOffer = useCallback(async (senderId: string, sdp: any) => {
-    const pc = createPeerConnection(senderId);
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(sdp));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      emitAnswer({ sdp: answer, toUserId: senderId, fromUserId: currentUser!.id });
-    } catch (err) {
-      console.error("Error processing offer:", err);
-    }
-  }, [createPeerConnection, currentUser?.id, emitAnswer]);
+  const processOffer = useCallback(
+    async (senderId: string, sdp: any) => {
+      const pc = createPeerConnection(senderId);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        emitAnswer({
+          sdp: answer,
+          toUserId: senderId,
+          fromUserId: currentUser!.id,
+        });
+      } catch (err) {
+        console.error("Error processing offer:", err);
+      }
+    },
+    [createPeerConnection, currentUser?.id, emitAnswer]
+  );
 
   // Buffer offers until media is ready
   useEffect(() => {
@@ -170,19 +181,25 @@ export default function CallOverlay() {
     const onAnswer = async (e: any) => {
       const { sdp, senderId } = e.detail;
       const pc = peerConnections.current.get(senderId);
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp)).catch(console.error);
+      if (pc)
+        await pc
+          .setRemoteDescription(new RTCSessionDescription(sdp))
+          .catch(console.error);
     };
 
     const onIceCandidate = async (e: any) => {
       const { candidate, senderId } = e.detail;
       const pc = peerConnections.current.get(senderId);
-      if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
+      if (pc)
+        await pc
+          .addIceCandidate(new RTCIceCandidate(candidate))
+          .catch(console.error);
     };
 
     const onSignal = (e: any) => {
       const { signal, fromUserId } = e.detail;
       if (signal.videoEnabled !== undefined) {
-        setRemoteVideoStatuses(prev => {
+        setRemoteVideoStatuses((prev) => {
           const next = new Map(prev);
           next.set(fromUserId, signal.videoEnabled);
           return next;
@@ -219,15 +236,27 @@ export default function CallOverlay() {
       window.removeEventListener("answer", onAnswer);
       window.removeEventListener("ice-candidate", onIceCandidate);
       window.removeEventListener("call:signal", onSignal);
-      window.removeEventListener("call:participant-left", handleParticipantLeft);
+      window.removeEventListener(
+        "call:participant-left",
+        handleParticipantLeft
+      );
     };
-  }, [activeCall, isMediaReady, processOffer, currentUser?.id, cleanup, setActiveCall]);
+  }, [
+    activeCall,
+    isMediaReady,
+    processOffer,
+    currentUser?.id,
+    cleanup,
+    setActiveCall,
+  ]);
 
   const isMediaRequesting = useRef(false);
   const requestedCallIdRef = useRef<string | null>(null);
   const activeCallRef = useRef(activeCall);
-  
-  useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
+
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
 
   // Handle media and pending connectivity
   useEffect(() => {
@@ -236,41 +265,51 @@ export default function CallOverlay() {
     const type = activeCall?.type;
     const conversationId = activeCall?.conversationId;
 
-    if (status === "CONNECTED" && 
-        conversationId && 
-        requestedCallIdRef.current !== conversationId && 
-        !localStream && 
-        !isMediaRequesting.current) {
-        
-        console.log("ONE-SHOT media request for:", conversationId);
-        requestedCallIdRef.current = conversationId;
-        isMediaRequesting.current = true;
-        setMediaError(null);
-        
-        // Timeout guard for getUserMedia
-        const mediaTimeout = setTimeout(() => {
-            if (!localStream && isMounted) {
-                console.error("Media request timed out for", conversationId);
-                isMediaRequesting.current = false;
-                setMediaError("Timeout starting video source. Please check if another app is using the camera.");
-                toast.error("Media access timed out.");
-            }
-        }, 30000);
+    if (
+      status === "CONNECTED" &&
+      conversationId &&
+      requestedCallIdRef.current !== conversationId &&
+      !localStream &&
+      !isMediaRequesting.current
+    ) {
+      console.log("ONE-SHOT media request for:", conversationId);
+      requestedCallIdRef.current = conversationId;
+      isMediaRequesting.current = true;
+      setMediaError(null);
+
+      // Timeout guard for getUserMedia
+      const mediaTimeout = setTimeout(() => {
+        if (!localStream && isMounted) {
+          console.error("Media request timed out for", conversationId);
+          isMediaRequesting.current = false;
+          setMediaError(
+            "Timeout starting video source. Please check if another app is using the camera."
+          );
+          toast.error("Media access timed out.");
+        }
+      }, 30000);
 
       // 500ms delay to bypass entry animation/Turbopack jitters
       setTimeout(async () => {
         try {
           // Pre-enumerate devices to "wake up" the browser media thread
           await navigator.mediaDevices.enumerateDevices();
-          
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: type === "VIDEO" ? { width: { ideal: 1280 }, height: { ideal: 720 } } : false, 
-            audio: true 
+
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video:
+              type === "VIDEO"
+                ? { width: { ideal: 1280 }, height: { ideal: 720 } }
+                : false,
+            audio: true,
           });
 
           clearTimeout(mediaTimeout);
-          if (!isMounted || !activeCallRef.current || activeCallRef.current.conversationId !== conversationId) {
-            stream.getTracks().forEach(t => t.stop());
+          if (
+            !isMounted ||
+            !activeCallRef.current ||
+            activeCallRef.current.conversationId !== conversationId
+          ) {
+            stream.getTracks().forEach((t) => t.stop());
             isMediaRequesting.current = false;
             return;
           }
@@ -284,12 +323,18 @@ export default function CallOverlay() {
           const currentCall = activeCallRef.current;
           if (currentCall.isOutgoing) {
             // ... signalling logic
-            const targets = currentCall.participants.filter((id) => id !== currentUser?.id);
+            const targets = currentCall.participants.filter(
+              (id) => id !== currentUser?.id
+            );
             targets.forEach(async (targetId) => {
               const pc = createPeerConnection(targetId);
               const offer = await pc.createOffer();
               await pc.setLocalDescription(offer);
-              emitOffer({ sdp: offer, toUserId: targetId, fromUserId: currentUser!.id });
+              emitOffer({
+                sdp: offer,
+                toUserId: targetId,
+                fromUserId: currentUser!.id,
+              });
             });
           }
 
@@ -302,23 +347,35 @@ export default function CallOverlay() {
           if (isMounted) {
             console.error("Media error for", conversationId, ":", err);
             isMediaRequesting.current = false;
-            setMediaError(err.name === "AbortError" ? "Timeout starting video source. Use the button to retry." : err.message);
+            setMediaError(
+              err.name === "AbortError"
+                ? "Timeout starting video source. Use the button to retry."
+                : err.message
+            );
 
             // FALLBACK: If video failed, try audio-only to keep the call alive
             if (type === "VIDEO") {
               // ... fallback logic
-              console.warn("Attempting audio-only fallback for", conversationId);
+              console.warn(
+                "Attempting audio-only fallback for",
+                conversationId
+              );
               toast.warning("Camera timed out. Falling back to audio-only.");
               try {
-                const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                if (isMounted && activeCallRef.current?.conversationId === conversationId) {
+                const audioStream = await navigator.mediaDevices.getUserMedia({
+                  audio: true,
+                });
+                if (
+                  isMounted &&
+                  activeCallRef.current?.conversationId === conversationId
+                ) {
                   setLocalStream(audioStream);
                   localStreamRef.current = audioStream;
-                  setIsVideoOff(true); 
+                  setIsVideoOff(true);
                   setIsMediaReady(true);
                   setMediaError(null);
-                  
-                  activeCallRef.current.participants.forEach(pId => {
+
+                  activeCallRef.current.participants.forEach((pId) => {
                     if (pId !== currentUser?.id) {
                       emitCallSignal({
                         conversationId,
@@ -330,19 +387,27 @@ export default function CallOverlay() {
                   });
 
                   if (activeCallRef.current.isOutgoing) {
-                    const targets = activeCallRef.current.participants.filter(id => id !== currentUser?.id);
+                    const targets = activeCallRef.current.participants.filter(
+                      (id) => id !== currentUser?.id
+                    );
                     targets.forEach(async (tId) => {
                       const pc = createPeerConnection(tId);
                       const offer = await pc.createOffer();
                       await pc.setLocalDescription(offer);
-                      emitOffer({ sdp: offer, toUserId: tId, fromUserId: currentUser!.id });
+                      emitOffer({
+                        sdp: offer,
+                        toUserId: tId,
+                        fromUserId: currentUser!.id,
+                      });
                     });
                   }
-                  pendingOffers.current.forEach((sdp, senderId) => processOffer(senderId, sdp));
+                  pendingOffers.current.forEach((sdp, senderId) =>
+                    processOffer(senderId, sdp)
+                  );
                   pendingOffers.current.clear();
                   return;
                 } else {
-                  audioStream.getTracks().forEach(t => t.stop());
+                  audioStream.getTracks().forEach((t) => t.stop());
                 }
               } catch (audioErr) {
                 console.error("Audio fallback failed too:", audioErr);
@@ -356,7 +421,20 @@ export default function CallOverlay() {
     return () => {
       isMounted = false;
     };
-  }, [activeCall?.status, activeCall?.conversationId, activeCall?.type, createPeerConnection, currentUser?.id, emitOffer, emitCallSignal, localStream, setLocalStream, setIsMediaReady, handleHangup, processOffer]);
+  }, [
+    activeCall?.status,
+    activeCall?.conversationId,
+    activeCall?.type,
+    createPeerConnection,
+    currentUser?.id,
+    emitOffer,
+    emitCallSignal,
+    localStream,
+    setLocalStream,
+    setIsMediaReady,
+    handleHangup,
+    processOffer,
+  ]);
 
   if (!activeCall) return null;
 
@@ -365,9 +443,12 @@ export default function CallOverlay() {
 
   const getParticipantName = (id: string): string => {
     if (!id) return "User";
-    const userInConv = useChatStore.getState().selectedConversation?.users.find(u => u.id === id);
+    const userInConv = useChatStore
+      .getState()
+      .selectedConversation?.users.find((u) => u.id === id);
     if (userInConv?.name) return userInConv.name;
-    if (activeCall.callee?.name && id === activeCall.callee?.id) return activeCall.callee.name;
+    if (activeCall.callee?.name && id === activeCall.callee?.id)
+      return activeCall.callee.name;
     return "User";
   };
 
@@ -386,29 +467,35 @@ export default function CallOverlay() {
       >
         {/* Call Timer Overlay */}
         {isConnected && remoteStream && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="absolute top-8 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/10"
           >
             <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
             <span className="text-sm font-mono font-medium text-white/90 tracking-widest">
-              {Math.floor(callDuration / 60).toString().padStart(2, "0")}:
-              {(callDuration % 60).toString().padStart(2, "0")}
+              {Math.floor(callDuration / 60)
+                .toString()
+                .padStart(2, "0")}
+              :{(callDuration % 60).toString().padStart(2, "0")}
             </span>
           </motion.div>
         )}
         {/* Background Layer */}
         {isConnected && !isAudioCall && remoteStream ? (
-           <div className="absolute inset-0">
-            <VideoPlayer 
-              stream={remoteStream || null} 
+          <div className="absolute inset-0">
+            <VideoPlayer
+              stream={remoteStream || null}
               username={remoteUserName || "User"}
-              avatar={activeCall.isGroup ? undefined : (activeCall.callee?.image ?? undefined)}
+              avatar={
+                activeCall.isGroup
+                  ? undefined
+                  : (activeCall.callee?.image ?? undefined)
+              }
               isVideoOn={remoteVideoStatuses.get(remoteUserId || "") !== false}
-              className="h-full w-full rounded-none border-none scale-100" 
+              className="h-full w-full rounded-none border-none scale-100"
             />
-           </div>
+          </div>
         ) : (
           <div className="absolute inset-0 bg-zinc-900">
             <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-zinc-900 to-black/40" />
@@ -417,27 +504,29 @@ export default function CallOverlay() {
 
         {/* Floating Local Preview */}
         {!isAudioCall && localStream && isConnected && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             className="absolute top-6 right-6 w-32 md:w-48 aspect-video rounded-xl overflow-hidden border-2 border-white/20 shadow-2xl z-50 bg-black"
           >
-            <VideoPlayer 
-                stream={localStream} 
-                isLocal 
-                muted 
-                username="You" 
-                avatar={currentUser?.image ?? undefined}
-                isVideoOn={!isVideoOff}
-                className="h-full w-full rounded-none" 
+            <VideoPlayer
+              stream={localStream}
+              isLocal
+              muted
+              username="You"
+              avatar={currentUser?.image ?? undefined}
+              isVideoOn={!isVideoOff}
+              className="h-full w-full rounded-none"
             />
           </motion.div>
         )}
 
         {/* Center Content */}
         <AnimatePresence>
-          {(isAudioCall || !isConnected || (isConnected && !isAudioCall && !remoteStream)) && (
-            <motion.div 
+          {(isAudioCall ||
+            !isConnected ||
+            (isConnected && !isAudioCall && !remoteStream)) && (
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -446,16 +535,33 @@ export default function CallOverlay() {
               <div className="relative">
                 <div className="absolute inset-0 bg-indigo-500 rounded-full animate-ping opacity-10 scale-150" />
                 <Avatar className="h-32 w-32 md:h-48 md:w-48 border-4 border-white/10 shadow-3xl">
-                  <AvatarImage src={activeCall.callee?.image || ""} className="object-cover" />
+                  <AvatarImage
+                    src={activeCall.callee?.image || ""}
+                    className="object-cover"
+                  />
                   <AvatarFallback className="text-4xl font-bold bg-zinc-800 text-white">
                     {activeCall.callee?.name?.[0] || "?"}
                   </AvatarFallback>
                 </Avatar>
               </div>
               <div className="text-center space-y-2">
-                <h1 className="text-3xl font-bold text-white tracking-tight">{activeCall.callee?.name}</h1>
+                <h1 className="text-3xl font-bold text-white tracking-tight">
+                  {activeCall.callee?.name}
+                </h1>
                 <p className="text-zinc-500 font-medium tracking-wide">
-                  {isIncoming ? (isAudioCall ? "Incoming Call" : "Incoming Video Call") : isConnected ? (remoteStream ? "On Call" : (isAudioCall ? "Connecting audio..." : "Connecting video...")) : activeCall.status === "RINGING" ? "Ringing..." : "Calling..."}
+                  {isIncoming
+                    ? isAudioCall
+                      ? "Incoming Call"
+                      : "Incoming Video Call"
+                    : isConnected
+                      ? remoteStream
+                        ? "On Call"
+                        : isAudioCall
+                          ? "Connecting audio..."
+                          : "Connecting video..."
+                      : activeCall.status === "RINGING"
+                        ? "Ringing..."
+                        : "Calling..."}
                 </p>
               </div>
             </motion.div>
@@ -500,12 +606,16 @@ export default function CallOverlay() {
                   <>
                     <button
                       onClick={() => {
-                        localStream?.getAudioTracks().forEach((t) => (t.enabled = isMuted));
+                        localStream
+                          ?.getAudioTracks()
+                          .forEach((t) => (t.enabled = isMuted));
                         setIsMuted(!isMuted);
                       }}
                       className={cn(
                         "h-12 w-12 rounded-xl flex items-center justify-center transition-all",
-                        isMuted ? "bg-red-500/20 text-red-500" : "bg-white/5 text-white hover:bg-white/10"
+                        isMuted
+                          ? "bg-red-500/20 text-red-500"
+                          : "bg-white/5 text-white hover:bg-white/10"
                       )}
                     >
                       {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
@@ -515,26 +625,34 @@ export default function CallOverlay() {
                         onClick={() => {
                           const newState = !isVideoOff;
                           setIsVideoOff(newState);
-                          localStream?.getVideoTracks().forEach((t) => (t.enabled = !newState));
-                          
+                          localStream
+                            ?.getVideoTracks()
+                            .forEach((t) => (t.enabled = !newState));
+
                           // Notify participants
-                          activeCall.participants.forEach(pId => {
+                          activeCall.participants.forEach((pId) => {
                             if (pId !== currentUser?.id) {
-                                emitCallSignal({
-                                    conversationId: activeCall.conversationId,
-                                    signal: { videoEnabled: !newState },
-                                    toUserId: pId,
-                                    fromUserId: currentUser!.id,
-                                });
+                              emitCallSignal({
+                                conversationId: activeCall.conversationId,
+                                signal: { videoEnabled: !newState },
+                                toUserId: pId,
+                                fromUserId: currentUser!.id,
+                              });
                             }
                           });
                         }}
                         className={cn(
                           "h-12 w-12 rounded-xl flex items-center justify-center transition-all",
-                          isVideoOff ? "bg-red-500/20 text-red-500" : "bg-white/5 text-white hover:bg-white/10"
+                          isVideoOff
+                            ? "bg-red-500/20 text-red-500"
+                            : "bg-white/5 text-white hover:bg-white/10"
                         )}
                       >
-                        {isVideoOff ? <VideoOff size={20} /> : <Video size={20} />}
+                        {isVideoOff ? (
+                          <VideoOff size={20} />
+                        ) : (
+                          <Video size={20} />
+                        )}
                       </button>
                     )}
                   </>
@@ -551,22 +669,22 @@ export default function CallOverlay() {
         </div>
 
         {mediaError && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             className="absolute top-24 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3 p-6 rounded-3xl bg-red-500/10 backdrop-blur-3xl border border-red-500/20 text-center max-w-[300px]"
           >
-             <p className="text-sm font-medium text-red-400">{mediaError}</p>
-             <button
-               onClick={() => {
-                 requestedCallIdRef.current = null;
-                 isMediaRequesting.current = false;
-                 setMediaError(null);
-               }}
-               className="px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-bold transition-all hover:bg-red-400 active:scale-95"
-             >
-               Retry Camera
-             </button>
+            <p className="text-sm font-medium text-red-400">{mediaError}</p>
+            <button
+              onClick={() => {
+                requestedCallIdRef.current = null;
+                isMediaRequesting.current = false;
+                setMediaError(null);
+              }}
+              className="px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-bold transition-all hover:bg-red-400 active:scale-95"
+            >
+              Retry Camera
+            </button>
           </motion.div>
         )}
       </motion.div>

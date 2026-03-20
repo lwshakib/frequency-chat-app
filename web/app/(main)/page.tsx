@@ -335,19 +335,21 @@ export default function Page() {
         </div>
         <div className="flex flex-col items-center gap-4 text-center max-w-[280px]">
           <div className="relative">
-             <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse scale-150 blur-xl" />
-             <Users className="h-16 w-16 opacity-20 relative z-10" />
+            <div className="absolute inset-0 bg-primary/10 rounded-full animate-pulse scale-150 blur-xl" />
+            <Users className="h-16 w-16 opacity-20 relative z-10" />
           </div>
           <div className="space-y-1">
             <p className="text-foreground font-semibold">Ready to chat?</p>
-            <p className="text-sm">Select a conversation from the sidebar to start messaging.</p>
+            <p className="text-sm">
+              Select a conversation from the sidebar to start messaging.
+            </p>
           </div>
-          <Button 
+          <Button
             onClick={toggleSidebar}
             className="mt-4 flex md:hidden items-center gap-2 px-8 h-12 rounded-full bg-primary text-primary-foreground font-bold shadow-xl shadow-primary/20 hover:scale-105 active:scale-95 transition-all group"
           >
-             <MessageSquare className="h-4 w-4 transition-transform group-hover:rotate-12" />
-             <span>Browse Chats</span>
+            <MessageSquare className="h-4 w-4 transition-transform group-hover:rotate-12" />
+            <span>Browse Chats</span>
           </Button>
         </div>
       </div>
@@ -484,7 +486,7 @@ export default function Page() {
                   align="end"
                   className="w-56 p-2 rounded-xl"
                 >
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     className="rounded-lg"
                     onClick={() => setIsDetailsOpen(true)}
                   >
@@ -553,78 +555,115 @@ export default function Page() {
 
       <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
         <DialogContent className="sm:max-w-md bg-background border rounded-2xl p-6 shadow-xl">
-           <DialogHeader className="mb-6">
-              <div className="flex items-center gap-4 text-left">
-                  <Avatar className="h-16 w-16 border bg-muted">
-                    <AvatarImage src={conversationImage || ""} className="object-cover" />
-                    <AvatarFallback className="text-xl font-bold">
-                        {conversationName?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="space-y-1">
-                    <h2 className="text-lg font-bold leading-tight tracking-tight">{conversationName}</h2>
-                    <p className="text-xs text-muted-foreground font-semibold tracking-wide">
-                        {selectedConversation.type === CONVERSATION_TYPE.GROUP ? "Group" : "Direct Message"}
+          <DialogHeader className="mb-6">
+            <div className="flex items-center gap-4 text-left">
+              <Avatar className="h-16 w-16 border bg-muted">
+                <AvatarImage
+                  src={conversationImage || ""}
+                  className="object-cover"
+                />
+                <AvatarFallback className="text-xl font-bold">
+                  {conversationName?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-1">
+                <h2 className="text-lg font-bold leading-tight tracking-tight">
+                  {conversationName}
+                </h2>
+                <p className="text-xs text-muted-foreground font-semibold tracking-wide">
+                  {selectedConversation.type === CONVERSATION_TYPE.GROUP
+                    ? "Group"
+                    : "Direct Message"}
+                </p>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {selectedConversation.type === CONVERSATION_TYPE.GROUP ? (
+              <>
+                {selectedConversation.description && (
+                  <div className="space-y-1.5 p-3 rounded-xl bg-muted/30 border">
+                    <p className="text-[11px] font-bold text-muted-foreground tracking-widest">
+                      About
+                    </p>
+                    <p className="text-sm text-foreground/80 leading-relaxed">
+                      {selectedConversation.description}
                     </p>
                   </div>
-              </div>
-           </DialogHeader>
+                )}
 
-           <div className="space-y-6">
-              {selectedConversation.type === CONVERSATION_TYPE.GROUP ? (
-                <>
-                  {selectedConversation.description && (
-                    <div className="space-y-1.5 p-3 rounded-xl bg-muted/30 border">
-                      <p className="text-[11px] font-bold text-muted-foreground tracking-widest">About</p>
-                      <p className="text-sm text-foreground/80 leading-relaxed">{selectedConversation.description}</p>
+                <div className="space-y-3">
+                  <p className="text-[11px] font-bold text-muted-foreground tracking-widest pl-1">
+                    Members ({selectedConversation.users.length + 1})
+                  </p>
+                  <div className="divide-y border rounded-xl bg-muted/10 overflow-hidden">
+                    <div className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/20">
+                      <Avatar className="h-8 w-8 border">
+                        <AvatarImage src={currentUser?.image || ""} />
+                        <AvatarFallback className="text-[10px] font-medium">
+                          {currentUser?.name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold truncate leading-none mb-1">
+                          You
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {currentUser?.email}
+                        </p>
+                      </div>
                     </div>
-                  )}
 
-                  <div className="space-y-3">
-                    <p className="text-[11px] font-bold text-muted-foreground tracking-widest pl-1">
-                      Members ({selectedConversation.users.length + 1})
-                    </p>
-                    <div className="divide-y border rounded-xl bg-muted/10 overflow-hidden">
-                        <div className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/20">
-                          <Avatar className="h-8 w-8 border">
-                            <AvatarImage src={currentUser?.image || ""} />
-                            <AvatarFallback className="text-[10px] font-medium">{currentUser?.name?.[0]}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold truncate leading-none mb-1">You</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{currentUser?.email}</p>
+                    {selectedConversation.users.map((user) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/20"
+                      >
+                        <Avatar className="h-8 w-8 border">
+                          <AvatarImage src={user.image || ""} />
+                          <AvatarFallback className="text-[10px] font-medium">
+                            {user.name?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 mr-auto">
+                          <p className="text-sm font-semibold truncate leading-none mb-1">
+                            {user.name}
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "h-1.5 w-1.5 rounded-full",
+                                user.isOnline
+                                  ? "bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]"
+                                  : "bg-zinc-500"
+                              )}
+                            />
+                            <p className="text-[11px] text-muted-foreground">
+                              {user.isOnline ? "Active" : "Offline"}
+                            </p>
                           </div>
                         </div>
-
-                        {selectedConversation.users.map((user) => (
-                          <div key={user.id} className="flex items-center gap-3 p-3 transition-colors hover:bg-muted/20">
-                            <Avatar className="h-8 w-8 border">
-                              <AvatarImage src={user.image || ""} />
-                              <AvatarFallback className="text-[10px] font-medium">{user.name?.[0]}</AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 mr-auto">
-                              <p className="text-sm font-semibold truncate leading-none mb-1">{user.name}</p>
-                              <div className="flex items-center gap-1.5">
-                                <span className={cn("h-1.5 w-1.5 rounded-full", user.isOnline ? "bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.4)]" : "bg-zinc-500")} />
-                                <p className="text-[11px] text-muted-foreground">{user.isOnline ? "Active" : "Offline"}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="space-y-4">
-                   <div className="space-y-3 p-4 rounded-xl bg-muted/20 border">
-                      <div className="flex items-center justify-between py-1">
-                         <span className="text-xs text-muted-foreground mr-4">Email</span>
-                         <span className="text-sm font-medium truncate">{otherUser?.email || "No email provided"}</span>
                       </div>
-                   </div>
+                    ))}
+                  </div>
                 </div>
-              )}
-           </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="space-y-3 p-4 rounded-xl bg-muted/20 border">
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-xs text-muted-foreground mr-4">
+                      Email
+                    </span>
+                    <span className="text-sm font-medium truncate">
+                      {otherUser?.email || "No email provided"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -12,10 +12,7 @@ export const getCallLogs = async (req: Request, res: Response) => {
 
     const calls = await prisma.call.findMany({
       where: {
-        OR: [
-          { callerId: currentUserId },
-          { receiverId: currentUserId }
-        ]
+        OR: [{ callerId: currentUserId }, { receiverId: currentUserId }],
       },
       include: {
         caller: true,
@@ -24,13 +21,13 @@ export const getCallLogs = async (req: Request, res: Response) => {
           select: {
             id: true,
             name: true,
-            type: true
-          }
-        }
+            type: true,
+          },
+        },
       },
       orderBy: {
-        createdAt: "desc"
-      }
+        createdAt: "desc",
+      },
     });
 
     res.json(calls);

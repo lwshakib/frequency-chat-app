@@ -1,8 +1,8 @@
 import express from "express";
-import { 
-  getNotifications, 
-  markAsRead, 
-  markAllAsRead 
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
 } from "../controllers/notifications.controllers";
 
 const router = express.Router();

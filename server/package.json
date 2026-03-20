@@ -12,19 +12,28 @@
     "db:reset": "bun x prisma migrate reset",
     "db: studio": "bun x prisma studio",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jest": "^30.0.0",
     "@types/morgan": "^1.9.10",
     "@types/node": "^25.0.3",
     "@types/pg": "^8.16.0",
+    "@types/supertest": "^7.2.0",
     "dotenv": "^17.2.3",
+    "jest": "^30.3.0",
+    "jest-mock-extended": "^4.0.0",
     "prettier": "^3.8.1",
-    "prisma": "^7.2.0"
+    "prisma": "^7.2.0",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.6",
+    "ts-node": "^10.9.2"
   },
   "peerDependencies": {
     "typescript": "^5"
