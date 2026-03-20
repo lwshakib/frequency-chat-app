@@ -1,0 +1,8 @@
+node_modules/
+dist/
+generated/
+prisma/generated/
+bun.lock
+.env
+.env.example
+*.md
