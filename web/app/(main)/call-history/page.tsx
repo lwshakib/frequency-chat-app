@@ -122,10 +122,7 @@ export default function CallHistoryPage() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-muted-foreground group-hover:translate-x-1 transition-transform">
-                       <p className="text-xs font-semibold hidden md:block capitalize">{call.status.toLowerCase()}</p>
-                       <ChevronRight className="h-4 w-4" />
-                    </div>
+                    {/* Removed status and chevron as per user request */}
                   </CardContent>
                 </Card>
               );
