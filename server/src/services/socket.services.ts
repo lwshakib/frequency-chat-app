@@ -141,8 +141,31 @@ class SocketService {
           type,
           participants,
           callerId,
+          callerName: socket.data.user.name,
+          callerImage: socket.data.user.image,
         });
 
+        // Create notifications for offline participants
+        targets.forEach(async (targetId: string) => {
+          const room = io.sockets.adapter.rooms.get(targetId);
+          const isOffline = !room || room.size === 0;
+
+          if (isOffline) {
+            try {
+              await prisma.notification.create({
+                data: {
+                  type: "CALL",
+                  content: `Missed ${type.toLowerCase()} call from ${socket.data.user.name}`,
+                  userId: targetId,
+                  conversationId,
+                },
+              });
+              io.to(targetId).emit("notification:new");
+            } catch (err) {
+              console.error("Failed to create offline call notification:", err);
+            }
+          }
+        });
         // SAVE CALL TO DATABASE
         try {
           const receiverId = participants.find((id: string) => id !== callerId);

@@ -18,10 +18,12 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
 
 export default function NotificationCenter() {
-  const { session, notifications, setNotifications, markNotificationRead } = useChatStore();
+  const { session, notifications, setNotifications, markNotificationRead, conversations, setSelectedConversation } = useChatStore();
   const userId = session?.user?.id;
+  const router = useRouter();
   
   const [isOpen, setIsOpen] = useState(false);
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -32,10 +34,27 @@ export default function NotificationCenter() {
     }
   }, [userId, setNotifications]);
 
-  const handleMarkRead = async (id: string) => {
+  const handleMarkRead = async (notification: ApiNotification) => {
     try {
-      await markNotificationAsRead(id);
-      markNotificationRead(id);
+      if (!notification.isRead) {
+        await markNotificationAsRead(notification.id);
+        markNotificationRead(notification.id);
+      }
+      
+      // Handle redirection
+      if (notification.type === "MESSAGE") {
+        if (notification.conversationId) {
+          const conversation = conversations.find(c => c.id === notification.conversationId);
+          if (conversation) {
+            setSelectedConversation(conversation);
+            router.push("/");
+          }
+        }
+      } else if (notification.type === "CALL") {
+         router.push("/call-history");
+      }
+      
+      setIsOpen(false);
     } catch (e) {
       console.error(e);
     }
@@ -87,7 +106,7 @@ export default function NotificationCenter() {
                     "relative group p-4 flex gap-3 transition-all hover:bg-sidebar-accent/50 cursor-pointer",
                     !notification.isRead && "bg-primary/5"
                   )}
-                  onClick={() => !notification.isRead && handleMarkRead(notification.id)}
+                  onClick={() => handleMarkRead(notification)}
                 >
                   <div className={cn(
                     "mt-1.5 flex h-2.5 w-2.5 shrink-0 rounded-full",
@@ -107,7 +126,7 @@ export default function NotificationCenter() {
                   {!notification.isRead && (
                     <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => {
                       e.stopPropagation();
-                      handleMarkRead(notification.id);
+                      handleMarkRead(notification);
                     }}>
                        <IconCheck className="size-3" />
                     </Button>
