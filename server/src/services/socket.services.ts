@@ -172,6 +172,11 @@ class SocketService {
         }
       });
 
+      socket.on("call:ringing", (payload: any) => {
+        const { conversationId, callerId } = payload;
+        io.to(callerId).emit("call:ringing", { conversationId, calleeId: socket.data.user.id });
+      });
+
       socket.on("call:accept", async (payload: any) => {
         const { conversationId, callerId, calleeId } = payload;
         io.to(callerId).emit("call:accepted", { conversationId, calleeId });

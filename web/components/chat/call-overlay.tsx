@@ -455,7 +455,7 @@ export default function CallOverlay() {
               <div className="text-center space-y-2">
                 <h1 className="text-3xl font-bold text-white tracking-tight">{activeCall.callee?.name}</h1>
                 <p className="text-zinc-500 font-medium tracking-wide">
-                  {isIncoming ? (isAudioCall ? "Incoming Call" : "Incoming Video Call") : isConnected ? (remoteStream ? "On Call" : (isAudioCall ? "Connecting audio..." : "Connecting video...")) : "Calling..."}
+                  {isIncoming ? (isAudioCall ? "Incoming Call" : "Incoming Video Call") : isConnected ? (remoteStream ? "On Call" : (isAudioCall ? "Connecting audio..." : "Connecting video...")) : activeCall.status === "RINGING" ? "Ringing..." : "Calling..."}
                 </p>
               </div>
             </motion.div>

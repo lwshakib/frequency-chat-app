@@ -274,6 +274,27 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         isGroup: payload.isGroup,
         callee: callerUser,
       });
+
+        // Notify caller that we are ringing
+        _socket.emit("call:ringing", {
+          conversationId: payload.conversationId,
+          callerId: payload.callerId,
+        });
+      }
+    );
+
+    _socket.on("call:ringing", (payload: any) => {
+      const state = useChatStore.getState();
+      if (
+        state.activeCall &&
+        state.activeCall.conversationId === payload.conversationId &&
+        state.activeCall.isOutgoing
+      ) {
+        state.setActiveCall({
+          ...state.activeCall,
+          status: "RINGING",
+        });
+      }
     });
 
     _socket.on("call:participant-left", (payload: any) => {
