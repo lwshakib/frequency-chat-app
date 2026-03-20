@@ -4,6 +4,7 @@ import { produceMessage, produceUserPresence } from "./kafka.services";
 import { REDIS_HOST, REDIS_PORT, REDIS_USERNAME, REDIS_PASSWORD } from "../env";
 import { auth } from "./auth.services";
 import { fromNodeHeaders } from "better-auth/node";
+import { prisma } from "./prisma.services";
 
 const pub = new Redis({
   host: REDIS_HOST,
@@ -129,7 +130,7 @@ class SocketService {
       });
 
       // --- Call Events ---
-      socket.on("call:start", (payload: any) => {
+      socket.on("call:start", async (payload: any) => {
         const { conversationId, type, participants, callerId } = payload;
         // Notify all participants except the caller
         const targets = participants.filter(
@@ -141,19 +142,86 @@ class SocketService {
           participants,
           callerId,
         });
+
+        // SAVE CALL TO DATABASE
+        try {
+          const receiverId = participants.find((id: string) => id !== callerId);
+          const newCall = await prisma.call.create({
+            data: {
+              type,
+              status: "RINGING",
+              conversationId,
+              callerId,
+              receiverId: receiverId || null,
+            },
+          });
+
+          // Track active call in Redis for cross-instance duration calculation/status updates
+          await pub.set(
+            `active_call:${conversationId}`,
+            JSON.stringify({
+              callId: newCall.id,
+              startTime: Date.now(),
+              status: "RINGING",
+            }),
+            "EX",
+            3600 // Expire after 1 hour anyway
+          );
+        } catch (error) {
+          console.error("Failed to log call start:", error);
+        }
       });
 
-      socket.on("call:accept", (payload: any) => {
+      socket.on("call:accept", async (payload: any) => {
         const { conversationId, callerId, calleeId } = payload;
         io.to(callerId).emit("call:accepted", { conversationId, calleeId });
+
+        // UPDATE CALL STATUS TO CONNECTED
+        try {
+          const callDataRaw = await pub.get(`active_call:${conversationId}`);
+          if (callDataRaw) {
+            const callData = JSON.parse(callDataRaw);
+            await prisma.call.update({
+              where: { id: callData.callId },
+              data: { status: "CONNECTED", updatedAt: new Date() },
+            });
+
+            // Update status in Redis
+            callData.status = "CONNECTED";
+            callData.startTime = Date.now(); // Reset start time to when connection happened for duration
+            await pub.set(
+              `active_call:${conversationId}`,
+              JSON.stringify(callData),
+              "EX",
+              3600
+            );
+          }
+        } catch (error) {
+          console.error("Failed to update call to CONNECTED:", error);
+        }
       });
 
-      socket.on("call:reject", (payload: any) => {
+      socket.on("call:reject", async (payload: any) => {
         const { conversationId, callerId, calleeId } = payload;
         io.to(callerId).emit("call:rejected", { conversationId, calleeId });
+
+        // UPDATE CALL STATUS TO REJECTED
+        try {
+          const callDataRaw = await pub.get(`active_call:${conversationId}`);
+          if (callDataRaw) {
+            const callData = JSON.parse(callDataRaw);
+            await prisma.call.update({
+              where: { id: callData.callId },
+              data: { status: "REJECTED" },
+            });
+            await pub.del(`active_call:${conversationId}`);
+          }
+        } catch (error) {
+          console.error("Failed to update call to REJECTED:", error);
+        }
       });
 
-      socket.on("call:hangup", (payload: any) => {
+      socket.on("call:hangup", async (payload: any) => {
         const { conversationId, participants, isGroup } = payload;
         if (isGroup) {
           // Just notify others that this specific user left
@@ -164,9 +232,39 @@ class SocketService {
             conversationId,
             userId: socket.data.user.id,
           });
+
+          // For group calls, we might want to check if everyone left, 
+          // but for simplicity, let's just end it if it's the caller or just 1 person left
+          // In this basic version, we wrap up the call record when it's ended for the "conversation"
+          // In group calls, its harder to define "the" duration if it continues differently
         } else {
           // For 1:1, end the call for everyone
           io.to(participants).emit("call:ended", { conversationId });
+        }
+
+        // WRAP UP CALL RECORD
+        try {
+          const callDataRaw = await pub.get(`active_call:${conversationId}`);
+          if (callDataRaw) {
+            const callData = JSON.parse(callDataRaw);
+            const duration =
+              callData.status === "CONNECTED"
+                ? Math.floor((Date.now() - callData.startTime) / 1000)
+                : 0;
+            const finalStatus =
+              callData.status === "CONNECTED" ? "COMPLETED" : "MISSED";
+
+            await prisma.call.update({
+              where: { id: callData.callId },
+              data: {
+                status: finalStatus,
+                duration: duration || 0,
+              },
+            });
+            await pub.del(`active_call:${conversationId}`);
+          }
+        } catch (error) {
+          console.error("Failed to wrap up call log:", error);
         }
       });
 

@@ -204,8 +204,7 @@ export default function CallOverlay() {
       }
       if (!activeCall.isGroup && userId === activeCall.callee?.id) {
         toast.info("Partner disconnected");
-        setActiveCall(null);
-        cleanup();
+        handleHangup();
       }
     };
 

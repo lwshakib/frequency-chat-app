@@ -146,7 +146,7 @@ model ConversationAdmin {
 model Call {
   id             String   @id @default(cuid())
   type           String   // VIDEO or AUDIO
-  status         String   // COMPLETED, MISSED, REJECTED, BUSY
+  status         String   // RINGING, CONNECTED, COMPLETED, MISSED, REJECTED, BUSY
   duration       Int?     // duration in seconds
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   conversationId String
