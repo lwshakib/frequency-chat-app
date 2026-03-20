@@ -97,7 +97,7 @@ export function NavUser() {
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/calls")}>
+              <DropdownMenuItem onClick={() => router.push("/call-history")}>
                 <Phone className="size-4" />
                 Call History
               </DropdownMenuItem>

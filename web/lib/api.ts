@@ -249,3 +249,6 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   const data = await response.json();
   return data.secure_url;
 }
+export const getCallLogs = async (): Promise<any[]> => {
+  return fetchApi<any[]>("/calls");
+};
